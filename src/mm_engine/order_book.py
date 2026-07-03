@@ -245,3 +245,35 @@ class OrderBook:
 
     def order_count(self) -> int:
         return len(self._order_index)
+
+    def get_order(self, order_id: int) -> Optional[Order]:
+        location = self._order_index.get(order_id)
+        if location is None:
+            return None
+        side, price = location
+        level = self._levels(side)[price]
+        return level.orders.get(order_id)
+
+    def reduce_order(self, order_id: int, quantity: int) -> Optional[Order]:
+        """Reduce resting order size; remove it when quantity reaches zero."""
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+
+        order = self.get_order(order_id)
+        if order is None:
+            return None
+        if quantity >= order.quantity:
+            return self.cancel_order(order_id)
+
+        side, price = self._order_index[order_id]
+        level = self._levels(side)[price]
+        level.remove(order_id)
+        updated = Order(
+            order_id=order_id,
+            side=order.side,
+            price=order.price,
+            quantity=order.quantity - quantity,
+            timestamp=order.timestamp,
+        )
+        level.add(updated)
+        return updated
