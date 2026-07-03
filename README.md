@@ -7,7 +7,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 | Milestone | Status |
 |---|---|
 | Week 1: Order book / matching engine | Done |
-| Week 2: Historical feed + baseline symmetric quotes | Planned |
+| Week 2: Historical feed + baseline symmetric quotes | Done |
 | Week 3: Avellaneda-Stoikov layer | Planned |
 | Week 4: Transaction costs + realism | Planned |
 | Week 5: Multi-regime stress tests | Planned |
@@ -40,15 +40,36 @@ pip install -e ".[dev]"
 pytest -v
 ```
 
+## Week 2: Feed Replay + Baseline Quoter
+
+- `feed/` — LOBSTER message parser and simple CSV replay format
+- `strategy/symmetric.py` — fixed half-spread quoting around mid (comparison baseline)
+- `inventory.py` — position, cash, realized and mark-to-market PnL
+- `backtest/engine.py` — replays market events and posts/cancels strategy quotes
+- `performance.py` — Sharpe, max drawdown, inventory stats
+- `scripts/run_baseline_backtest.py` — CLI entry point
+
+```bash
+python scripts/run_baseline_backtest.py data/sample_session.csv --half-spread 0.02
+```
+
 ## Project layout
 
 ```
 src/mm_engine/
-  types.py        # Order, Fill, Side
-  order_book.py   # Matching engine
+  types.py
+  order_book.py
+  inventory.py
+  performance.py
+  feed/
+  strategy/
+  backtest/
+data/
+  sample_session.csv
+  sample_lobster.csv
+scripts/
+  run_baseline_backtest.py
 tests/
-  test_order_book.py
-  test_order_book_synthetic.py
 ```
 
 ## References
