@@ -8,7 +8,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 |---|---|
 | Week 1: Order book / matching engine | Done |
 | Week 2: Historical feed + baseline symmetric quotes | Done |
-| Week 3: Avellaneda-Stoikov layer | Planned |
+| Week 3: Avellaneda-Stoikov layer | Done |
 | Week 4: Transaction costs + realism | Planned |
 | Week 5: Multi-regime stress tests | Planned |
 
@@ -71,6 +71,21 @@ scripts/
   run_baseline_backtest.py
 tests/
 ```
+
+## Week 3: Avellaneda-Stoikov Quoting
+
+- `strategy/avellaneda_stoikov.py` — reservation price skew + optimal half-spread from `k`
+- `strategy/volatility.py` — rolling mid-price volatility estimator
+- `scripts/compare_strategies.py` — side-by-side baseline vs A-S metrics
+
+```bash
+python scripts/compare_strategies.py data/sample_session.csv --half-spread 0.02 --gamma 0.1
+```
+
+Interview anchors:
+- **Reservation price** shifts below mid when long (encourages selling)
+- **Optimal spread** widens with risk aversion `γ`, volatility `σ`, and time remaining
+- **Arrival intensity `k`** controls the trade-off between fill rate and edge per fill
 
 ## References
 
