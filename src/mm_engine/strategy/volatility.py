@@ -8,11 +8,17 @@ from typing import Deque, Optional
 class RollingVolatility:
     """Estimate volatility from rolling mid-price log returns."""
 
-    def __init__(self, window: int = 20, default_sigma: float = 0.02) -> None:
+    def __init__(
+        self,
+        window: int = 20,
+        default_sigma: float = 0.02,
+        max_sigma: float = 0.25,
+    ) -> None:
         if window < 2:
             raise ValueError("window must be at least 2")
         self.window = window
         self.default_sigma = default_sigma
+        self.max_sigma = max_sigma
         self._mids: Deque[float] = deque(maxlen=window + 1)
 
     def update(self, mid_price: float) -> float:
@@ -26,7 +32,7 @@ class RollingVolatility:
         ]
         if len(returns) < 2:
             return self.default_sigma
-        return _population_std(returns)
+        return min(_population_std(returns), self.max_sigma)
 
 
 def _population_std(values: list[float]) -> float:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 from mm_engine.feed.events import MarketEvent
 from mm_engine.order_book import OrderBook
@@ -23,6 +23,9 @@ class AvellanedaStoikovConfig:
     vol_window: int = 20
     session_start: Optional[int] = None
     session_end: Optional[int] = None
+    # Convert log-return sigma to price units (sigma * mid) for AS formulas.
+    sigma_in_price_units: bool = True
+    max_quote_distance_pct: float = 0.15
 
 
 class AvellanedaStoikovQuoter:
@@ -58,23 +61,40 @@ class AvellanedaStoikovQuoter:
         if not self.bid_allowed(position) and not self.ask_allowed(position):
             return None
 
-        sigma = self._volatility.update(mid) if self.config.use_volatility_estimator else self.config.sigma
+        sigma_log = (
+            self._volatility.update(mid)
+            if self.config.use_volatility_estimator
+            else self.config.sigma
+        )
+        sigma = sigma_to_price_units(sigma_log, mid) if self.config.sigma_in_price_units else sigma_log
         tau = self._time_remaining()
-        reservation = reservation_price(mid, position, self.config.gamma, sigma, tau)
-        half_spread = optimal_half_spread(self.config.gamma, self.config.k, sigma, tau)
+        reservation, delta_bid, delta_ask = optimal_quote_offsets(
+            mid,
+            position,
+            self.config.gamma,
+            self.config.k,
+            sigma,
+            tau,
+        )
+
+        bid_price = _clamp_to_mid(reservation - delta_bid, mid, self.config.max_quote_distance_pct)
+        ask_price = _clamp_to_mid(reservation + delta_ask, mid, self.config.max_quote_distance_pct)
+        if bid_price <= 0 or ask_price <= 0 or bid_price >= ask_price:
+            return None
 
         self._last_mid = mid
         return Quote(
-            bid_price=reservation - half_spread,
-            ask_price=reservation + half_spread,
+            bid_price=bid_price,
+            ask_price=ask_price,
             quote_size=self.config.quote_size,
         )
 
     def bid_allowed(self, position: int) -> bool:
-        return position < self.config.max_inventory
+        # One-sided gate: stop buying while long (same discipline as baseline).
+        return position <= 0 and position > -self.config.max_inventory
 
     def ask_allowed(self, position: int) -> bool:
-        return position > -self.config.max_inventory
+        return position >= 0 and position < self.config.max_inventory
 
     def _time_remaining(self) -> float:
         if self._last_timestamp is None or self._session_start is None or self._session_end is None:
@@ -91,6 +111,11 @@ class AvellanedaStoikovQuoter:
         self._last_timestamp = timestamp
 
 
+def sigma_to_price_units(sigma_log: float, mid_price: float) -> float:
+    """Map log-return volatility into price volatility for AS arithmetic formulas."""
+    return max(sigma_log * mid_price, 1e-9)
+
+
 def reservation_price(
     mid_price: float,
     inventory: int,
@@ -98,8 +123,32 @@ def reservation_price(
     sigma: float,
     time_remaining: float,
 ) -> float:
-    """Skew quotes away from inventory: long -> lower reservation price."""
-    return mid_price - inventory * gamma * (sigma ** 2) * time_remaining
+    """Skew reservation below mid when long, above mid when short."""
+    inv_term = gamma * (sigma ** 2) * time_remaining
+    return mid_price - inventory * inv_term
+
+
+def optimal_quote_offsets(
+    mid_price: float,
+    inventory: int,
+    gamma: float,
+    k: float,
+    sigma: float,
+    time_remaining: float,
+) -> Tuple[float, float, float]:
+    """Full AS bid/ask offsets: widen bid and tighten ask when inventory is long."""
+    inv_term = gamma * (sigma ** 2) * time_remaining
+    intensity = (1.0 / gamma) * math.log(1.0 + gamma / k)
+    delta_bid = intensity + ((2 * inventory + 1) / 2.0) * inv_term
+    delta_ask = intensity - ((2 * inventory - 1) / 2.0) * inv_term
+    reservation = reservation_price(mid_price, inventory, gamma, sigma, time_remaining)
+    return reservation, delta_bid, delta_ask
+
+
+def _clamp_to_mid(price: float, mid_price: float, max_distance_pct: float) -> float:
+    lower = mid_price * (1.0 - max_distance_pct)
+    upper = mid_price * (1.0 + max_distance_pct)
+    return max(lower, min(upper, price))
 
 
 def optimal_half_spread(
@@ -108,7 +157,7 @@ def optimal_half_spread(
     sigma: float,
     time_remaining: float,
 ) -> float:
-    """Optimal half-spread from order-arrival intensity k and risk aversion."""
-    intensity_term = (1.0 / (2.0 * gamma)) * math.log(1.0 + gamma / k)
-    inventory_risk_term = 0.5 * gamma * (sigma ** 2) * time_remaining
-    return intensity_term + inventory_risk_term
+    """Symmetric half-spread at zero inventory (baseline reference only)."""
+    inv_term = gamma * (sigma ** 2) * time_remaining
+    intensity = (1.0 / gamma) * math.log(1.0 + gamma / k)
+    return intensity + 0.5 * inv_term
