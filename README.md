@@ -84,7 +84,8 @@ python scripts/compare_strategies.py data/sample_session.csv --half-spread 0.02 
 
 Interview anchors:
 - **Reservation price** shifts below mid when long (encourages selling)
-- **Optimal spread** widens with risk aversion `γ`, volatility `σ`, and time remaining
+- **Asymmetric offsets** widen bid and tighten ask when long (δ_b ↑, δ_a ↓)
+- **Sigma** must be in price units (`σ_log × mid`) for meaningful skew in the formulas
 - **Arrival intensity `k`** controls the trade-off between fill rate and edge per fill
 
 ## Week 4: Transaction Costs + Latency
