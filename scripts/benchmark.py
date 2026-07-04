@@ -12,6 +12,8 @@ from mm_engine.backtest import BacktestEngine
 from mm_engine.feed import load_csv_feed
 from mm_engine.order_book import OrderBook
 from mm_engine.simulation.config import SimulationConfig, TransactionCostConfig
+from mm_engine.stress import StressTestRunner
+from mm_engine.stress.runner import format_comparison_table
 from mm_engine.strategy import AvellanedaStoikovConfig, AvellanedaStoikovQuoter, SymmetricQuoter, SymmetricQuoterConfig
 from mm_engine.types import Side
 
@@ -136,6 +138,22 @@ def bench_backtest_produces_curve() -> BenchmarkResult:
     return BenchmarkResult("backtest pnl curve", ok, detail)
 
 
+def bench_stress_test_three_regimes() -> BenchmarkResult:
+    runner = StressTestRunner(data_dir=ROOT / "data" / "regimes")
+    comparison = runner.run()
+    regimes = {item.regime for item in comparison.results}
+    strategies = {item.strategy for item in comparison.results}
+    ok = regimes == {"calm", "normal", "volatile"} and strategies == {
+        "symmetric",
+        "avellaneda_stoikov",
+    }
+    return BenchmarkResult(
+        "stress test 3 regimes",
+        ok,
+        f"rows={len(comparison.results)} regimes={sorted(regimes)}",
+    )
+
+
 BENCHMARKS: List[Callable[[], BenchmarkResult]] = [
     bench_pytest,
     bench_queue_position_fifo,
@@ -143,6 +161,7 @@ BENCHMARKS: List[Callable[[], BenchmarkResult]] = [
     bench_fees_reduce_pnl,
     bench_latency_delays_or_reduces_fills,
     bench_as_inventory_risk,
+    bench_stress_test_three_regimes,
 ]
 
 
