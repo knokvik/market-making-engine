@@ -7,7 +7,8 @@ from mm_engine.feed.events import EventType, MarketEvent
 from mm_engine.inventory import InventoryManager, PnLSnapshot
 from mm_engine.order_book import OrderBook
 from mm_engine.performance import PerformanceSummary, summarize_performance
-from mm_engine.strategy.symmetric import Quote, SymmetricQuoter
+from mm_engine.strategy.base import QuotingStrategy
+from mm_engine.strategy.symmetric import SymmetricQuoter
 from mm_engine.types import Fill, Side
 
 
@@ -24,7 +25,7 @@ class BacktestEngine:
     def __init__(
         self,
         *,
-        strategy: Optional[SymmetricQuoter] = None,
+        strategy: Optional[QuotingStrategy] = None,
         our_order_id_start: int = 10_000_000,
     ) -> None:
         self.book = OrderBook()
@@ -35,13 +36,17 @@ class BacktestEngine:
         self._active_quotes: Dict[Side, int] = {}
 
     def run(self, events: Iterable[MarketEvent]) -> BacktestResult:
+        event_list = list(events)
+        self._configure_strategy_session(event_list)
+
         pnl_curve: List[PnLSnapshot] = []
         our_fills: List[Fill] = []
 
-        for event in events:
+        for event in event_list:
             market_fills = self._apply_market_event(event)
             self._process_market_fills(market_fills)
 
+            self._notify_strategy(event)
             if self.strategy.should_requote(event, self.book):
                 quote_fills = self._update_quotes(event.timestamp)
                 for fill in quote_fills:
@@ -54,6 +59,18 @@ class BacktestEngine:
 
         summary = summarize_performance(pnl_curve, self.inventory.state)
         return BacktestResult(pnl_curve=pnl_curve, fills=our_fills, summary=summary)
+
+    def _configure_strategy_session(self, events: List[MarketEvent]) -> None:
+        if not events:
+            return
+        configure_session = getattr(self.strategy, "configure_session", None)
+        if callable(configure_session):
+            configure_session(events[0].timestamp, events[-1].timestamp)
+
+    def _notify_strategy(self, event: MarketEvent) -> None:
+        note_timestamp = getattr(self.strategy, "note_timestamp", None)
+        if callable(note_timestamp):
+            note_timestamp(event.timestamp)
 
     def _apply_market_event(self, event: MarketEvent) -> List[Fill]:
         if event.event_type is EventType.ADD:

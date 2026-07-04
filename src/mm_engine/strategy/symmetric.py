@@ -5,7 +5,7 @@ from typing import Optional
 
 from mm_engine.feed.events import MarketEvent
 from mm_engine.order_book import OrderBook
-from mm_engine.types import Side
+from mm_engine.strategy.base import Quote
 
 
 @dataclass(frozen=True)
@@ -14,13 +14,6 @@ class SymmetricQuoterConfig:
     quote_size: int = 10
     max_inventory: int = 100
     requote_on_mid_change: bool = True
-
-
-@dataclass(frozen=True)
-class Quote:
-    bid_price: float
-    ask_price: float
-    quote_size: int
 
 
 class SymmetricQuoter:
