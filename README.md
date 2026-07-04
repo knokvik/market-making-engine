@@ -9,7 +9,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 | Week 1: Order book / matching engine | Done |
 | Week 2: Historical feed + baseline symmetric quotes | Done |
 | Week 3: Avellaneda-Stoikov layer | Done |
-| Week 4: Transaction costs + realism | Planned |
+| Week 4: Transaction costs + realism | Done |
 | Week 5: Multi-regime stress tests | Planned |
 
 ## Architecture
@@ -86,6 +86,18 @@ Interview anchors:
 - **Reservation price** shifts below mid when long (encourages selling)
 - **Optimal spread** widens with risk aversion `γ`, volatility `σ`, and time remaining
 - **Arrival intensity `k`** controls the trade-off between fill rate and edge per fill
+
+## Week 4: Transaction Costs + Latency
+
+- `simulation/costs.py` — maker/taker fee model in basis points
+- `simulation/latency.py` — quote updates activate after configurable delay
+- FIFO queue position is enforced by the order book (no instant back-of-queue fills)
+- `scripts/benchmark.py` — quick progress sanity checks before shipping changes
+
+```bash
+python scripts/benchmark.py
+pytest -v
+```
 
 ## References
 

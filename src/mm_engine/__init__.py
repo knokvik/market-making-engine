@@ -5,6 +5,7 @@ from mm_engine.feed import EventType, MarketEvent, load_csv_feed, load_lobster_m
 from mm_engine.inventory import InventoryManager, PnLSnapshot
 from mm_engine.order_book import OrderBook
 from mm_engine.performance import PerformanceSummary, summarize_performance
+from mm_engine.simulation import SimulationConfig, TransactionCostConfig, compute_transaction_cost
 from mm_engine.strategy import (
     AvellanedaStoikovConfig,
     AvellanedaStoikovQuoter,
@@ -33,9 +34,12 @@ __all__ = [
     "Quote",
     "QuotingStrategy",
     "Side",
+    "SimulationConfig",
     "SymmetricQuoter",
     "SymmetricQuoterConfig",
     "Trade",
+    "TransactionCostConfig",
+    "compute_transaction_cost",
     "load_csv_feed",
     "load_lobster_messages",
     "optimal_half_spread",
