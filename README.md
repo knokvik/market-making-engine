@@ -10,7 +10,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 | Week 2: Historical feed + baseline symmetric quotes | Done |
 | Week 3: Avellaneda-Stoikov layer | Done |
 | Week 4: Transaction costs + realism | Done |
-| Week 5: Multi-regime stress tests | Planned |
+| Week 5: Multi-regime stress tests | Done |
 
 ## Architecture
 
@@ -97,6 +97,17 @@ Interview anchors:
 ```bash
 python scripts/benchmark.py
 pytest -v
+```
+
+## Week 5: Multi-Regime Stress Tests
+
+- `stress/regimes.py` — synthetic calm / normal / volatile feed generators
+- `stress/runner.py` — runs symmetric vs A-S across regimes with costs
+- `scripts/run_stress_test.py` — prints comparison table
+
+```bash
+python scripts/run_stress_test.py
+python scripts/benchmark.py
 ```
 
 ## References

@@ -6,6 +6,7 @@ from mm_engine.inventory import InventoryManager, PnLSnapshot
 from mm_engine.order_book import OrderBook
 from mm_engine.performance import PerformanceSummary, summarize_performance
 from mm_engine.simulation import SimulationConfig, TransactionCostConfig, compute_transaction_cost
+from mm_engine.stress import REGIMES, StressTestRunner, generate_regime_feed
 from mm_engine.strategy import (
     AvellanedaStoikovConfig,
     AvellanedaStoikovQuoter,
@@ -30,11 +31,13 @@ __all__ = [
     "Order",
     "OrderBook",
     "PerformanceSummary",
+    "REGIMES",
     "PnLSnapshot",
     "Quote",
     "QuotingStrategy",
     "Side",
     "SimulationConfig",
+    "StressTestRunner",
     "SymmetricQuoter",
     "SymmetricQuoterConfig",
     "Trade",
@@ -44,5 +47,6 @@ __all__ = [
     "load_lobster_messages",
     "optimal_half_spread",
     "reservation_price",
+    "generate_regime_feed",
     "summarize_performance",
 ]
