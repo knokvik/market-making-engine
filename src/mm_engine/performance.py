@@ -20,6 +20,7 @@ class PerformanceSummary:
     sell_volume: int
     final_position: int
     final_realized_pnl: float
+    total_transaction_costs: float
 
 
 def summarize_performance(
@@ -39,6 +40,7 @@ def summarize_performance(
             sell_volume=inventory.sell_volume,
             final_position=inventory.position,
             final_realized_pnl=inventory.realized_pnl,
+            total_transaction_costs=inventory.transaction_costs,
         )
 
     pnl_values = [point.mark_to_market_pnl for point in pnl_curve]
@@ -64,6 +66,7 @@ def summarize_performance(
         sell_volume=inventory.sell_volume,
         final_position=inventory.position,
         final_realized_pnl=inventory.realized_pnl,
+        total_transaction_costs=inventory.transaction_costs,
     )
 
 

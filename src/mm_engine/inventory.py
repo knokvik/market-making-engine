@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
+from mm_engine.simulation.config import TransactionCostConfig
+from mm_engine.simulation.costs import compute_transaction_cost
 from mm_engine.types import Fill, Side
 
 
@@ -14,6 +16,7 @@ class InventoryState:
     buy_volume: int = 0
     sell_volume: int = 0
     fill_count: int = 0
+    transaction_costs: float = 0.0
 
 
 @dataclass
@@ -22,6 +25,7 @@ class InventoryManager:
 
     state: InventoryState = field(default_factory=InventoryState)
     _avg_entry_price: float = 0.0
+    _cost_config: Optional[TransactionCostConfig] = None
 
     @property
     def position(self) -> int:
@@ -33,9 +37,9 @@ class InventoryManager:
             price = fill.price
             # fill.side is the aggressor; a sell aggressor hits our bid.
             if fill.side is Side.ASK:
-                self._apply_buy(qty, price)
+                self._apply_buy(qty, price, is_maker=True)
             else:
-                self._apply_sell(qty, price)
+                self._apply_sell(qty, price, is_maker=True)
             self.state.fill_count += 1
             return
 
@@ -43,20 +47,34 @@ class InventoryManager:
             qty = fill.quantity
             price = fill.price
             if fill.side is Side.BID:
-                self._apply_buy(qty, price)
+                self._apply_buy(qty, price, is_maker=False)
             else:
-                self._apply_sell(qty, price)
+                self._apply_sell(qty, price, is_maker=False)
             self.state.fill_count += 1
 
-    def _apply_buy(self, quantity: int, price: float) -> None:
-        self.state.cash -= price * quantity
+    def _apply_buy(self, quantity: int, price: float, *, is_maker: bool) -> None:
+        fee = self._compute_fee(price, quantity, is_maker=is_maker)
+        self.state.cash -= price * quantity + fee
+        self.state.transaction_costs += fee
         self.state.buy_volume += quantity
         self._update_position(self.state.position + quantity, price, quantity, is_buy=True)
 
-    def _apply_sell(self, quantity: int, price: float) -> None:
-        self.state.cash += price * quantity
+    def _apply_sell(self, quantity: int, price: float, *, is_maker: bool) -> None:
+        fee = self._compute_fee(price, quantity, is_maker=is_maker)
+        self.state.cash += price * quantity - fee
+        self.state.transaction_costs += fee
         self.state.sell_volume += quantity
         self._update_position(self.state.position - quantity, price, quantity, is_buy=False)
+
+    def _compute_fee(self, price: float, quantity: int, *, is_maker: bool) -> float:
+        if self._cost_config is None:
+            return 0.0
+        return compute_transaction_cost(
+            price,
+            quantity,
+            is_maker=is_maker,
+            config=self._cost_config,
+        )
 
     def _update_position(self, new_position: int, price: float, quantity: int, *, is_buy: bool) -> None:
         old_position = self.state.position
