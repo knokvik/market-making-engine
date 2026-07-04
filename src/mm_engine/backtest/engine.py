@@ -7,6 +7,8 @@ from mm_engine.feed.events import EventType, MarketEvent
 from mm_engine.inventory import InventoryManager, PnLSnapshot
 from mm_engine.order_book import OrderBook
 from mm_engine.performance import PerformanceSummary, summarize_performance
+from mm_engine.simulation.config import SimulationConfig
+from mm_engine.simulation.latency import QuoteLatencyQueue
 from mm_engine.strategy.base import QuotingStrategy
 from mm_engine.strategy.symmetric import SymmetricQuoter
 from mm_engine.types import Fill, Side
@@ -20,17 +22,21 @@ class BacktestResult:
 
 
 class BacktestEngine:
-    """Replay market events and run a symmetric quoter against the live book."""
+    """Replay market events and run a quoting strategy against the live book."""
 
     def __init__(
         self,
         *,
         strategy: Optional[QuotingStrategy] = None,
+        simulation: Optional[SimulationConfig] = None,
         our_order_id_start: int = 10_000_000,
     ) -> None:
         self.book = OrderBook()
         self.strategy = strategy or SymmetricQuoter()
+        self.simulation = simulation or SimulationConfig()
         self.inventory = InventoryManager()
+        self.inventory._cost_config = self.simulation.costs
+        self._latency_queue = QuoteLatencyQueue()
         self._our_order_id = our_order_id_start
         self._our_orders: Set[int] = set()
         self._active_quotes: Dict[Side, int] = {}
@@ -43,19 +49,29 @@ class BacktestEngine:
         our_fills: List[Fill] = []
 
         for event in event_list:
+            quote_fills = self._activate_pending_quotes(event.timestamp)
+            for fill in quote_fills:
+                our_fills.append(fill)
+                self._record_our_fill(fill)
+
             market_fills = self._apply_market_event(event)
             self._process_market_fills(market_fills)
 
             self._notify_strategy(event)
             if self.strategy.should_requote(event, self.book):
-                quote_fills = self._update_quotes(event.timestamp)
-                for fill in quote_fills:
+                scheduled_fills = self._schedule_quotes(event.timestamp)
+                for fill in scheduled_fills:
                     our_fills.append(fill)
                     self._record_our_fill(fill)
 
             snapshot = self._snapshot(event.timestamp)
             if snapshot is not None:
                 pnl_curve.append(snapshot)
+
+        quote_fills = self._activate_pending_quotes(event_list[-1].timestamp if event_list else 0)
+        for fill in quote_fills:
+            our_fills.append(fill)
+            self._record_our_fill(fill)
 
         summary = summarize_performance(pnl_curve, self.inventory.state)
         return BacktestResult(pnl_curve=pnl_curve, fills=our_fills, summary=summary)
@@ -106,10 +122,6 @@ class BacktestEngine:
         for fill in fills:
             if fill.maker_order_id in self._our_orders:
                 self._record_our_fill(fill)
-                self._our_orders.discard(fill.maker_order_id)
-                for side, order_id in list(self._active_quotes.items()):
-                    if order_id == fill.maker_order_id:
-                        del self._active_quotes[side]
 
     def _record_our_fill(self, fill: Fill) -> None:
         our_id = None
@@ -131,12 +143,50 @@ class BacktestEngine:
                 if order_id == fill.taker_order_id:
                     del self._active_quotes[side]
 
-    def _update_quotes(self, timestamp: int) -> List[Fill]:
+    def _schedule_quotes(self, timestamp: int) -> List[Fill]:
         quote = self.strategy.compute_quote(self.book, self.inventory.position)
+        self._cancel_active_quotes()
+        self._latency_queue.clear()
+
         if quote is None:
-            self._cancel_active_quotes()
             return []
 
+        latency = self.simulation.quote_latency_ns
+        if latency <= 0:
+            return self._post_quote_pair(quote, timestamp)
+
+        activate_at = timestamp + latency
+        fills: List[Fill] = []
+        if self.strategy.bid_allowed(self.inventory.position):
+            self._latency_queue.schedule(
+                activate_at=activate_at,
+                side=Side.BID,
+                price=quote.bid_price,
+                size=quote.quote_size,
+            )
+        if self.strategy.ask_allowed(self.inventory.position):
+            self._latency_queue.schedule(
+                activate_at=activate_at,
+                side=Side.ASK,
+                price=quote.ask_price,
+                size=quote.quote_size,
+            )
+        return fills
+
+    def _activate_pending_quotes(self, timestamp: int) -> List[Fill]:
+        fills: List[Fill] = []
+        for pending in self._latency_queue.pop_ready(timestamp):
+            fills.extend(
+                self._replace_quote(
+                    pending.side,
+                    pending.price,
+                    pending.size,
+                    timestamp,
+                )
+            )
+        return fills
+
+    def _post_quote_pair(self, quote, timestamp: int) -> List[Fill]:
         fills: List[Fill] = []
         fills.extend(self._replace_quote(Side.BID, quote.bid_price, quote.quote_size, timestamp))
         fills.extend(self._replace_quote(Side.ASK, quote.ask_price, quote.quote_size, timestamp))
