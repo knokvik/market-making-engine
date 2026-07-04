@@ -27,6 +27,16 @@ def test_long_position_disables_bid_side():
     assert strategy.ask_allowed(5) is True
 
 
+def test_as_matches_symmetric_one_sided_gating():
+    from mm_engine.strategy import AvellanedaStoikovQuoter
+
+    strategy = AvellanedaStoikovQuoter()
+    assert strategy.bid_allowed(5) is False
+    assert strategy.ask_allowed(5) is True
+    assert strategy.bid_allowed(-3) is True
+    assert strategy.ask_allowed(-3) is False
+
+
 def test_short_position_disables_ask_side():
     strategy = SymmetricQuoter()
     assert strategy.bid_allowed(-3) is True

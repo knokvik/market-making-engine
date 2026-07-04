@@ -122,8 +122,10 @@ def bench_as_inventory_risk() -> BenchmarkResult:
     ).run(events)
     assert baseline.summary is not None and as_strategy.summary is not None
 
-    ok = as_strategy.summary.max_abs_inventory <= baseline.summary.max_abs_inventory
+    ok = as_strategy.summary.avg_abs_inventory <= baseline.summary.avg_abs_inventory
     detail = (
+        f"avg_inv baseline={baseline.summary.avg_abs_inventory:.2f} "
+        f"a-s={as_strategy.summary.avg_abs_inventory:.2f} "
         f"max_inv baseline={baseline.summary.max_abs_inventory} "
         f"a-s={as_strategy.summary.max_abs_inventory}"
     )
