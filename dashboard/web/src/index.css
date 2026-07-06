@@ -4,87 +4,302 @@
 
 :root {
   color-scheme: dark;
+  --desk-bg: #141414;
+  --desk-panel: #1B1B1B;
+  --desk-panel-hover: #222222;
+  --desk-border: #333333;
+  --desk-text: #E6E6E6;
+  --desk-muted: #888888;
+  --desk-info: #7A8FA8;
+  --desk-profit: #44FF89;
+  --desk-loss: #FF4D6A;
+}
+
+@layer base {
+  html,
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: 'SF Mono', 'Space Mono', ui-monospace, monospace;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background: #0b0d10;
-  overflow: hidden;
+  background: var(--desk-bg);
+  color: var(--desk-text);
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer components {
-  .glass-panel {
-    @apply rounded-xl border border-desk-border/80 bg-desk-panel/70 backdrop-blur-glass shadow-glow;
+  .glass-panel,
+  .monitor-panel {
+    @apply rounded-panel border border-desk-border bg-desk-panel shadow-panel;
   }
 
   .metric-label {
-    @apply text-[10px] uppercase tracking-wider text-desk-muted font-medium;
+    @apply text-[9px] uppercase tracking-widest text-desk-muted font-semibold;
   }
 
   .metric-value {
-    @apply font-mono text-sm font-semibold;
-  }
-
-  .neon-profit {
-    @apply text-desk-profit;
-    text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
-  }
-
-  .neon-loss {
-    @apply text-desk-loss;
-    text-shadow: 0 0 8px rgba(255, 59, 92, 0.4);
-  }
-
-  .neon-info {
-    @apply text-desk-info;
-  }
-
-  .neon-warn {
-    @apply text-desk-warn;
+    @apply text-xs font-semibold text-desk-text;
   }
 
   .sidebar-toggle {
-    @apply flex items-center gap-2 rounded-lg border border-desk-border/60 px-2.5 py-1.5 text-xs transition hover:border-desk-info/40 hover:bg-white/5;
+    @apply flex items-center gap-2 rounded border border-desk-border px-2 py-1 text-[10px] text-desk-muted transition;
   }
+  .sidebar-toggle:hover { @apply bg-desk-panel-hover text-desk-text; }
+  .sidebar-toggle.active { @apply border-desk-info/40 bg-desk-info/5 text-desk-info; }
 
-  .sidebar-toggle.active {
-    @apply border-desk-info/50 bg-desk-info/10 text-desk-info;
+  .toolbar-btn {
+    @apply flex items-center gap-1 rounded border border-desk-border bg-desk-panel px-2 py-0.5 text-[10px] text-desk-muted transition;
+  }
+  .toolbar-btn:hover { @apply bg-desk-panel-hover text-desk-text; }
+
+  .monitor-tab {
+    @apply rounded border border-transparent px-2 py-0.5 text-[10px] font-medium text-desk-muted transition;
+  }
+  .monitor-tab:hover { @apply text-desk-text; }
+  .monitor-tab.active { @apply border-desk-border bg-desk-bg text-desk-text; }
+
+  .desk-accent-bar {
+    @apply h-3 w-0.5 shrink-0 rounded-full bg-desk-profit;
   }
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb {
-  background: #2a3140;
+  background: #555555;
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #6B8CAE; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.04); border-radius: 999px; }
+
+/* ═══ Scrollable workstation grid ═══ */
+.dashboard-grid-container {
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  background: var(--desk-bg);
+  display: flex;
+  flex-direction: column;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+.dashboard-grid-container::-webkit-scrollbar-thumb {
+  background: #5a5a5a;
 }
 
-/* React Grid Layout — dark trading desk theme */
+.dashboard-grid-container .react-grid-layout {
+  position: relative;
+  width: 100% !important;
+  flex: 1 1 auto;
+  min-height: 100%;
+}
+
 .react-grid-item {
-  transition: box-shadow 0.15s ease;
+  transition: none !important;
+  overflow: visible;
+  touch-action: none;
 }
 
-.react-grid-item.react-draggable-dragging {
-  z-index: 30;
-  box-shadow: 0 8px 32px rgba(59, 158, 255, 0.2);
+.react-grid-item > .react-resizable {
+  position: relative;
+  overflow: hidden;
+}
+
+.grid-panel-wrapper,
+.panel-chrome {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.monitor-panel {
+  min-height: 0;
+}
+
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.resizing {
+  z-index: 200 !important;
+  opacity: 0.95;
+  box-shadow: 0 0 0 1px #444444, 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: #6B8CAE !important;
+  opacity: 0.12 !important;
+  border-radius: 6px;
+}
+
+/* Resize handles — edge + corner grips */
+.react-grid-item > .react-resizable-handle {
+  z-index: 1000;
+  opacity: 0;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.react-grid-item:hover > .react-resizable-handle,
+.react-grid-item.resizing > .react-resizable-handle {
+  opacity: 1;
 }
 
 .react-grid-item > .react-resizable-handle::after {
-  border-color: #3b9eff !important;
+  display: none;
 }
 
-.react-grid-item > .react-resizable-handle {
-  opacity: 0.4;
+.react-grid-item > .react-resizable-handle-n,
+.react-grid-item > .react-resizable-handle-s {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  height: 8px;
+  margin: 0;
+  transform: none;
+  cursor: ns-resize;
 }
 
-.react-grid-item:hover > .react-resizable-handle {
+.react-grid-item > .react-resizable-handle-e,
+.react-grid-item > .react-resizable-handle-w {
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  height: auto;
+  margin: 0;
+  transform: none;
+  cursor: ew-resize;
+}
+
+.react-grid-item > .react-resizable-handle-n { top: 0; }
+.react-grid-item > .react-resizable-handle-s { bottom: 0; }
+.react-grid-item > .react-resizable-handle-e { right: 0; }
+.react-grid-item > .react-resizable-handle-w { left: 0; }
+
+.react-grid-item > .react-resizable-handle-se,
+.react-grid-item > .react-resizable-handle-sw,
+.react-grid-item > .react-resizable-handle-ne,
+.react-grid-item > .react-resizable-handle-nw {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.react-grid-item:hover > .react-resizable-handle-se,
+.react-grid-item:hover > .react-resizable-handle-sw,
+.react-grid-item:hover > .react-resizable-handle-ne,
+.react-grid-item:hover > .react-resizable-handle-nw,
+.react-grid-item.resizing > .react-resizable-handle-se,
+.react-grid-item.resizing > .react-resizable-handle-sw,
+.react-grid-item.resizing > .react-resizable-handle-ne,
+.react-grid-item.resizing > .react-resizable-handle-nw {
   opacity: 1;
+}
+
+/* Subtle border hint on hover */
+.react-grid-item:hover .panel-chrome {
+  box-shadow: inset 0 0 0 1px #444444;
+}
+
+.react-grid-item.resizing .panel-chrome {
+  box-shadow: inset 0 0 0 1px #7A8FA8;
+}
+
+.panel-controls {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 60;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.panel-chrome:hover .panel-controls,
+.react-grid-item.react-draggable-dragging .panel-controls {
+  opacity: 1;
+}
+
+.panel-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--desk-border);
+  background: var(--desk-panel);
+  color: var(--desk-muted);
+  cursor: pointer;
+}
+
+.panel-ctrl-btn:hover {
+  color: var(--desk-text);
+  border-color: #555555;
+  background: var(--desk-panel-hover);
+}
+
+.chart-container {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chart-container.flex {
+  display: flex;
+  flex-direction: column;
+}
+
+.glass-panel .chart-container,
+.monitor-panel .chart-container {
+  flex: 1;
+  min-height: 0;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee-scroll 40s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
 }

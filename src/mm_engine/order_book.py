@@ -246,6 +246,12 @@ class OrderBook:
     def order_count(self) -> int:
         return len(self._order_index)
 
+    def clear_orders_except(self, keep_ids: set[int]) -> None:
+        """Remove all resting orders whose ids are not in keep_ids."""
+        for order_id in list(self._order_index.keys()):
+            if order_id not in keep_ids:
+                self.cancel_order(order_id)
+
     def get_order(self, order_id: int) -> Optional[Order]:
         location = self._order_index.get(order_id)
         if location is None:

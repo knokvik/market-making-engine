@@ -13,7 +13,7 @@ export function RightSidebar({ frame }: RightSidebarProps) {
 
   return (
     <GlassPanel title="Risk & Inventory" className="h-full">
-      <div className="space-y-2 p-2">
+      <div className="space-y-1.5 overflow-auto p-2">
         <MetricCard label="Inventory" value={frame?.position ?? 0} tone={frame && frame.position > 0 ? 'warn' : frame && frame.position < 0 ? 'info' : 'neutral'} />
         <MetricCard label="Avg Inventory" value={(frame?.avg_abs_inventory ?? 0).toFixed(2)} />
         <MetricCard label="Max Inventory" value={frame?.max_abs_inventory ?? 0} />

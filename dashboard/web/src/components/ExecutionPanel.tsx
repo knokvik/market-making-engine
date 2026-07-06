@@ -1,6 +1,7 @@
 import { GlassPanel } from './ui/GlassPanel'
 import { MetricCard } from './ui/MetricCard'
 import type { ReplayFrame } from '../types'
+import { formatLatencyMs } from '../utils/latencyFormat'
 
 export function ExecutionPanel({ frame }: { frame: ReplayFrame | null }) {
   return (
@@ -20,7 +21,7 @@ export function ExecutionPanel({ frame }: { frame: ReplayFrame | null }) {
           label="Exec Latency"
           value={`${(frame?.execution_latency_us ?? 0).toFixed(0)}µs`}
         />
-        <MetricCard label="E2E Latency" value={`${(frame?.end_to_end_latency_ms ?? 0).toFixed(2)}ms`} />
+        <MetricCard label="E2E Latency" value={formatLatencyMs(frame?.end_to_end_latency_ms ?? 0)} />
         <MetricCard label="Quote Lifetime" value={`${(frame?.quote_lifetime_ms ?? 0).toFixed(0)}ms`} />
         <MetricCard label="Cancel Rate" value={`${((frame?.cancel_rate ?? 0) * 100).toFixed(0)}%`} />
         <MetricCard label="Fill Efficiency" value={`${((frame?.fill_efficiency ?? 0) * 100).toFixed(0)}%`} />

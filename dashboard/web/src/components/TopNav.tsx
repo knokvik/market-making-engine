@@ -1,11 +1,16 @@
-import { Activity, Cpu, HardDrive, Settings, Zap } from 'lucide-react'
+import { Activity, CircleHelp, Cpu, HardDrive, RotateCcw, Settings, Timer } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { Logo } from './ui/Logo'
 import type { ReplayFrame } from '../types'
+import { formatLatencyMs } from '../utils/latencyFormat'
 
 interface TopNavProps {
   frame: ReplayFrame | null
   connected: boolean
   onSettings: () => void
+  onResetLayout?: () => void
+  showResetLayout?: boolean
+  onHelp?: () => void
 }
 
 const statusColor: Record<string, string> = {
@@ -14,19 +19,15 @@ const statusColor: Record<string, string> = {
   critical: 'text-desk-loss',
 }
 
-export function TopNav({ frame, connected, onSettings }: TopNavProps) {
-  const mode = frame?.mode ?? 'REPLAY'
-  const isLive = mode === 'LIVE'
+export function TopNav({ frame, connected, onSettings, onResetLayout, showResetLayout, onHelp }: TopNavProps) {
+  const isLive = frame?.live_mode ?? frame?.mode === 'LIVE'
+  const isPaper = frame?.feed_type === 'paper_trading' || frame?.mode === 'PAPER'
+  const mode = isLive ? 'LIVE' : isPaper ? 'PAPER' : (frame?.mode ?? 'REPLAY')
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-desk-border/80 bg-desk-panel/80 px-4 backdrop-blur-glass">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-desk-border bg-desk-panel px-4">
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-desk-info/20 text-desk-info">
-            <Zap size={14} />
-          </div>
-          <span className="text-sm font-semibold tracking-tight">Market Making Engine</span>
-        </div>
+        <Logo size={28} showText />
 
         <motion.div
           animate={{ opacity: [1, 0.6, 1] }}
@@ -48,13 +49,35 @@ export function TopNav({ frame, connected, onSettings }: TopNavProps) {
       </div>
 
       <div className="flex items-center gap-4 text-[11px] font-mono text-desk-muted">
-        <Stat icon={<Activity size={12} />} label="evt/s" value={frame?.events_per_sec.toFixed(0) ?? '—'} />
-        <Stat icon={<Zap size={12} />} label="latency" value={`${frame?.end_to_end_latency_ms.toFixed(1) ?? '—'}ms`} />
-        <Stat icon={<Cpu size={12} />} label="cpu" value={`${frame?.cpu_percent.toFixed(0) ?? '—'}%`} />
-        <Stat icon={<HardDrive size={12} />} label="mem" value={`${frame?.memory_mb.toFixed(0) ?? '—'}MB`} />
+        <Stat icon={<Activity size={12} />} label="evt/s" value={frame?.events_per_sec != null ? frame.events_per_sec.toFixed(0) : '—'} />
+        <Stat icon={<Timer size={12} />} label="latency" value={frame?.end_to_end_latency_ms != null ? formatLatencyMs(frame.end_to_end_latency_ms) : '—'} />
+        <Stat icon={<Cpu size={12} />} label="cpu" value={frame?.cpu_percent != null ? `${frame.cpu_percent.toFixed(0)}%` : '—'} />
+        <Stat icon={<HardDrive size={12} />} label="mem" value={frame?.memory_mb != null ? `${frame.memory_mb.toFixed(0)}MB` : '—'} />
+        {showResetLayout && onHelp && (
+          <button
+            type="button"
+            onClick={onHelp}
+            title="How to use"
+            className="rounded-lg border border-desk-border p-1.5 text-desk-muted transition hover:border-desk-info/40 hover:text-desk-info"
+          >
+            <CircleHelp size={14} />
+          </button>
+        )}
+        {showResetLayout && onResetLayout && (
+          <button
+            type="button"
+            onClick={onResetLayout}
+            title="Reset layout"
+            className="rounded-lg border border-desk-border p-1.5 text-desk-muted transition hover:border-desk-profit/40 hover:text-desk-profit"
+          >
+            <RotateCcw size={14} />
+          </button>
+        )}
         <button
+          type="button"
           onClick={onSettings}
-          className="rounded-lg border border-desk-border p-1.5 text-desk-muted transition hover:border-desk-info/40 hover:text-white"
+          title="Settings"
+          className="rounded-lg border border-desk-border p-1.5 text-desk-muted transition hover:border-desk-info/40 hover:text-desk-info"
         >
           <Settings size={14} />
         </button>
@@ -67,7 +90,7 @@ function NavChip({ label, value, className }: { label: string; value: string; cl
   return (
     <div className="hidden lg:flex flex-col">
       <span className="text-[9px] uppercase tracking-wider text-desk-muted">{label}</span>
-      <span className={`text-xs font-medium ${className ?? 'text-white'}`}>{value}</span>
+      <span className={`text-xs font-medium ${className ?? 'text-desk-text'}`}>{value}</span>
     </div>
   )
 }
@@ -77,7 +100,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
     <div className="flex items-center gap-1.5">
       {icon}
       <span>{label}</span>
-      <span className="text-white">{value}</span>
+      <span className="text-desk-text">{value}</span>
     </div>
   )
 }
@@ -86,5 +109,6 @@ function formatStrategy(strategy?: string) {
   if (!strategy) return '—'
   if (strategy === 'avellaneda_stoikov') return 'Avellaneda-Stoikov'
   if (strategy === 'symmetric') return 'Symmetric'
+  if (strategy === 'glft') return 'GLFT'
   return strategy
 }

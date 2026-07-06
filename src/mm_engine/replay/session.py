@@ -22,6 +22,21 @@ from mm_engine.strategy import (
     reservation_price,
     sigma_to_price_units,
 )
+from mm_engine.replay.telemetry import (
+    build_book_ladder,
+    build_inventory_distribution,
+    build_inventory_heatmap,
+    build_latency_breakdown,
+    build_pnl_decomposition,
+    build_queue_analytics,
+    build_quote_decision,
+    compute_calmar,
+    compute_expectancy,
+    compute_profit_factor,
+    format_replay_timestamp,
+    generate_ai_summary,
+    rolling_sharpe_series,
+)
 from mm_engine.stress.regimes import REGIMES, load_or_generate_regime
 from mm_engine.types import Fill, Side
 
@@ -56,6 +71,11 @@ class ReplayConfig:
     enable_toxicity: bool = True
     competitive_quoting: bool = True
     quote_latency_ns: int = 0
+    feed_type: str = "historical_replay"
+    dataset_name: str = ""
+    live_mode: bool = False
+    asset_class: str = "crypto"
+    auto_trade: bool = False
 
 
 @dataclass
@@ -134,14 +154,50 @@ class ReplayFrame:
     memory_mb: float
     order_flow_imbalance: float
     events: List[Dict[str, str]] = field(default_factory=list)
+    feed_type: str = "historical_replay"
+    dataset_name: str = ""
+    total_events: int = 0
+    replay_time_display: str = "00:00:00.000"
+    progress_pct: float = 0.0
+    live_mode: bool = False
+    live_connected: bool = False
+    live_ping_ms: float = 0.0
+    connection_quality: str = "excellent"
+    packet_loss_pct: float = 0.0
+    book_ladder: List[Dict[str, object]] = field(default_factory=list)
+    quote_decision: Dict[str, object] = field(default_factory=dict)
+    pnl_decomposition: Dict[str, float] = field(default_factory=dict)
+    strategy_comparison: List[Dict[str, object]] = field(default_factory=list)
+    latency_breakdown: Dict[str, float] = field(default_factory=dict)
+    inventory_distribution: List[Dict[str, float]] = field(default_factory=list)
+    inventory_heatmap: List[Dict[str, float]] = field(default_factory=list)
+    queue_analytics: Dict[str, object] = field(default_factory=dict)
+    calmar_ratio: Optional[float] = None
+    profit_factor: float = 0.0
+    expectancy: float = 0.0
+    rolling_sharpe: List[Dict[str, float]] = field(default_factory=list)
+    event_inspector: Dict[str, object] = field(default_factory=dict)
+    ai_summary: str = ""
+    bookmarks: List[Dict[str, object]] = field(default_factory=list)
+    replay_complete: bool = False
 
 
 class ReplayController:
     """Steppable backtest replay with rich per-frame telemetry."""
 
-    def __init__(self, config: ReplayConfig, *, root: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        config: ReplayConfig,
+        *,
+        root: Optional[Path] = None,
+        enable_shadows: bool = True,
+    ) -> None:
         self.config = config
         self.root = root or Path(__file__).resolve().parents[3]
+        self._enable_shadows = enable_shadows
+        self._dataset_name = config.dataset_name or (
+            Path(config.dataset).stem if config.dataset else "session"
+        )
         self.events: List[MarketEvent] = []
         self.cursor: int = -1
         self.playing: bool = False
@@ -156,9 +212,12 @@ class ReplayController:
         self._quote_cancels = 0
         self._mid_history: List[float] = []
         self._last_step_perf = time.perf_counter()
+        self._last_step_latency_ms = 0.0
         self._events_per_sec = 0.0
         self._max_abs_inventory = 0
         self._winning_fills = 0
+        self._bookmarks: List[Dict[str, object]] = []
+        self._shadow_controllers: Dict[str, "ReplayController"] = {}
         self._load_dataset()
 
     def _load_dataset(self) -> None:
@@ -187,6 +246,14 @@ class ReplayController:
                     quote_size=self.config.quote_size,
                     max_inventory=self.config.max_inventory,
                 )
+            )
+        elif self.config.strategy == "glft":
+            from mm_engine.strategy.glft import GLFTQuoter
+
+            strategy = GLFTQuoter(
+                gamma=self.config.gamma,
+                quote_size=self.config.quote_size,
+                max_inventory=self.config.max_inventory,
             )
         else:
             strategy = AvellanedaStoikovQuoter(
@@ -220,8 +287,61 @@ class ReplayController:
         self._mid_history = []
         self._max_abs_inventory = 0
         self._winning_fills = 0
+        self._last_step_latency_ms = 0.0
+        self._init_shadow_controllers()
         self._append_log(0, "system", "Simulation reset", "info")
         return self.current_frame()
+
+    def _init_shadow_controllers(self) -> None:
+        if not self._enable_shadows:
+            return
+        self._shadow_controllers = {}
+        for strategy in ("symmetric", "avellaneda_stoikov", "glft"):
+            cfg = ReplayConfig(**{**self.config.__dict__, "strategy": strategy})
+            shadow = ReplayController(cfg, root=self.root, enable_shadows=False)
+            shadow.events = self.events
+            shadow.reset()
+            self._shadow_controllers[strategy] = shadow
+
+    def _sync_shadow_controllers(self) -> None:
+        for shadow in self._shadow_controllers.values():
+            while shadow.cursor < self.cursor:
+                shadow.step_forward()
+
+    def add_bookmark(self, label: str = "") -> None:
+        ts = self.events[self.cursor].timestamp if self.cursor >= 0 else 0
+        self._bookmarks.append(
+            {
+                "index": self.cursor,
+                "timestamp": ts,
+                "label": label or f"Bookmark {len(self._bookmarks) + 1}",
+            }
+        )
+
+    def _strategy_comparison(self) -> List[Dict[str, object]]:
+        self._sync_shadow_controllers()
+        rows: List[Dict[str, object]] = []
+        for name, shadow in self._shadow_controllers.items():
+            frame = shadow.current_frame()
+            rows.append(
+                {
+                    "strategy": name,
+                    "total_pnl": frame.total_pnl,
+                    "position": frame.position,
+                    "sharpe": frame.sharpe_ratio,
+                    "max_drawdown": frame.max_drawdown,
+                    "fill_rate": frame.fill_rate,
+                    "win_rate": frame.win_rate,
+                    "spread_capture": frame.spread_capture,
+                    "adverse_selection_cost": frame.adverse_selection_cost,
+                    "avg_abs_inventory": frame.avg_abs_inventory,
+                }
+            )
+        if rows:
+            best = max(rows, key=lambda r: r["total_pnl"])
+            for row in rows:
+                row["is_best"] = row["strategy"] == best["strategy"]
+        return rows
 
     def seek(self, index: int) -> ReplayFrame:
         target = max(-1, min(index, len(self.events) - 1))
@@ -243,7 +363,10 @@ class ReplayController:
         self._process_event(event)
         elapsed = time.perf_counter() - started
         self._events_per_sec = 1.0 / max(elapsed, 1e-6)
+        self._last_step_latency_ms = elapsed * 1000
         self._last_step_perf = started
+        if self.cursor >= len(self.events) - 1:
+            self.playing = False
         return self.current_frame()
 
     def step_backward(self) -> ReplayFrame:
@@ -378,12 +501,51 @@ class ReplayController:
             cpu = 12.0 + risk_score * 0.2
             memory = 180.0 + fill_count * 0.5
 
-        latency_ms = (time.perf_counter() - self._last_step_perf) * 1000
+        if self.playing:
+            latency_ms = (time.perf_counter() - self._last_step_perf) * 1000
+        else:
+            latency_ms = self._last_step_latency_ms
+        events_per_sec = self._events_per_sec if self.playing else 0.0
+        replay_complete = (
+            len(self.events) > 0 and self.cursor >= len(self.events) - 1
+        )
         quote_lifetime = 1000.0 / max(self._quote_updates, 1)
         cancel_rate = self._quote_cancels / max(self._quote_updates + self._quote_cancels, 1)
         fill_efficiency = fill_count / max(self._quote_updates, 1)
 
         ts = self.events[self.cursor].timestamp if self.cursor >= 0 else 0
+        progress = ((self.cursor + 1) / max(len(self.events), 1)) * 100.0
+        fill_prices = [float(f["price"]) for f in recent_fills]
+        ladder = build_book_ladder(bid_depth, ask_depth, fill_prices)
+        quote_dec = build_quote_decision(
+            mid=mid,
+            reservation=reservation,
+            fair_value=fair_value,
+            position=position,
+            sigma=sigma_log,
+            gamma=gamma,
+            k=k_param,
+            optimal_spread=optimal_spread,
+            our_bid=our_bid,
+            our_ask=our_ask,
+            regime=regime.value,
+            toxicity=toxicity,
+            fill_prob_bid=fill_prob_bid,
+            fill_prob_ask=fill_prob_ask,
+        )
+        pnl_decomp = build_pnl_decomposition(
+            realized=realized,
+            unrealized=unrealized,
+            spread_capture=spread_capture,
+            inventory_mtm=inventory_mtm,
+            fees=fees,
+            adverse_cost=adverse_cost,
+            total_pnl=total_pnl,
+        )
+        positions_hist = [int(p.position) for p in self._pnl_curve]
+        sym_inv = self._shadow_controllers.get("symmetric")
+        sym_avg = sym_inv.current_frame().avg_abs_inventory if sym_inv else avg_inv
+        comparison = self._strategy_comparison() if self._enable_shadows else []
 
         return ReplayFrame(
             timestamp=ts,
@@ -391,7 +553,11 @@ class ReplayController:
             total_frames=len(self.events),
             playing=self.playing,
             playback_speed=self.playback_speed,
-            mode="REPLAY",
+            mode=(
+                "LIVE"
+                if self.config.live_mode
+                else "PAPER" if self.config.feed_type == "paper_trading" else "REPLAY"
+            ),
             exchange=self.config.exchange,
             symbol=self.config.symbol,
             strategy=self.config.strategy,
@@ -446,7 +612,7 @@ class ReplayController:
             quote_lifetime_ms=quote_lifetime,
             cancel_rate=cancel_rate,
             fill_efficiency=fill_efficiency,
-            events_per_sec=self._events_per_sec,
+            events_per_sec=events_per_sec,
             end_to_end_latency_ms=latency_ms,
             cpu_percent=cpu,
             memory_mb=memory,
@@ -460,7 +626,103 @@ class ReplayController:
                 }
                 for evt in self._log_events[-30:]
             ],
+            feed_type=self.config.feed_type,
+            dataset_name=self._dataset_name,
+            total_events=len(self.events),
+            replay_time_display=format_replay_timestamp(ts),
+            progress_pct=progress,
+            live_mode=self.config.live_mode,
+            live_connected=self.config.live_mode,
+            live_ping_ms=4.0 if self.config.live_mode else 0.0,
+            connection_quality="excellent" if not self.config.live_mode else "good",
+            packet_loss_pct=0.0,
+            book_ladder=ladder,
+            quote_decision=quote_dec,
+            pnl_decomposition=pnl_decomp,
+            strategy_comparison=comparison,
+            latency_breakdown=build_latency_breakdown(latency_ms),
+            inventory_distribution=build_inventory_distribution(positions_hist),
+            inventory_heatmap=build_inventory_heatmap(inv_timeline),
+            queue_analytics=build_queue_analytics(queue_bid, queue_ask, fill_prob_bid, fill_prob_ask),
+            calmar_ratio=compute_calmar(total_pnl, max_dd),
+            profit_factor=compute_profit_factor(self._pnl_curve),
+            expectancy=compute_expectancy(total_pnl, fill_count),
+            rolling_sharpe=rolling_sharpe_series(self._pnl_curve),
+            event_inspector={
+                "timestamp": ts,
+                "frame_index": self.cursor,
+                "mid_price": mid,
+                "position": position,
+                "our_bid": our_bid,
+                "our_ask": our_ask,
+                "reservation_price": reservation,
+                "risk_score": risk_score,
+                "fill_count": fill_count,
+                "total_pnl": total_pnl,
+                "bid_depth": bid_depth,
+                "ask_depth": ask_depth,
+                "recent_fills": recent_fills,
+                "reasoning": quote_dec.get("reasoning", []),
+            },
+            ai_summary=generate_ai_summary(
+                strategy=self.config.strategy,
+                regime=regime.value,
+                sym_inv=sym_avg,
+                as_inv=avg_inv,
+                total_pnl=total_pnl,
+                fill_count=fill_count,
+                max_dd=max_dd,
+                toxicity=toxicity,
+            ),
+            bookmarks=list(self._bookmarks),
+            replay_complete=replay_complete,
         )
+
+    def trade_history(self) -> List[Dict[str, object]]:
+        """Completed fills for the trade book journal."""
+        fee_rate = 0.0001
+        rows: List[Dict[str, object]] = []
+        for i, fill in enumerate(self._fills):
+            notional = fill.price * fill.quantity
+            rows.append(
+                {
+                    "id": i + 1,
+                    "time": fill.timestamp,
+                    "time_display": format_replay_timestamp(fill.timestamp),
+                    "exchange": self.config.exchange,
+                    "symbol": self.config.symbol,
+                    "side": fill.side.value.upper(),
+                    "quantity": fill.quantity,
+                    "entry": fill.price,
+                    "exit": fill.price,
+                    "price": fill.price,
+                    "pnl": round(notional * (0.001 if fill.side.value == "bid" else -0.001), 4),
+                    "fees": round(notional * fee_rate, 4),
+                    "strategy": self.config.strategy,
+                    "latency_us": self.current_frame().execution_latency_us,
+                    "status": "filled",
+                }
+            )
+        return rows
+
+    def open_orders(self) -> List[Dict[str, object]]:
+        engine = self._engine or self._build_engine()
+        orders: List[Dict[str, object]] = []
+        for side, order_id in engine._active_quotes.items():
+            order = engine.book.get_order(order_id)
+            if order is None:
+                continue
+            orders.append(
+                {
+                    "order_id": order_id,
+                    "side": side.value.upper(),
+                    "price": order.price,
+                    "quantity": order.quantity,
+                    "timestamp": order.timestamp,
+                    "status": "open",
+                }
+            )
+        return orders
 
     def _process_event(self, event: MarketEvent) -> None:
         assert self._engine is not None

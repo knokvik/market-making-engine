@@ -9,15 +9,15 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, tone = 'neutral', sub }: MetricCardProps) {
   const toneClass = {
-    profit: 'neon-profit',
-    loss: 'neon-loss',
-    info: 'neon-info',
-    warn: 'neon-warn',
-    neutral: 'text-white',
+    profit: 'text-desk-profit',
+    loss: 'text-desk-loss',
+    info: 'text-desk-info',
+    warn: 'text-desk-warn',
+    neutral: 'text-desk-text',
   }[tone]
 
   return (
-    <div className="rounded-lg border border-desk-border/50 bg-black/20 px-2.5 py-2">
+    <div className="rounded border border-desk-border bg-desk-bg px-2 py-1.5">
       <div className="metric-label">{label}</div>
       <div className={clsx('metric-value mt-0.5', toneClass)}>{value}</div>
       {sub && <div className="mt-0.5 text-[10px] text-desk-muted">{sub}</div>}
