@@ -96,6 +96,7 @@ Interview anchors:
 - `scripts/benchmark.py` — quick progress sanity checks before shipping changes
 
 ```bash
+python scripts/audit_checklist.py   # verify skew, fees, mark-to-market
 python scripts/benchmark.py
 pytest -v
 ```
