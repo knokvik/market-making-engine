@@ -7,6 +7,7 @@ from mm_engine.strategy.avellaneda_stoikov import (
     optimal_quote_offsets,
     reservation_price,
     sigma_to_price_units,
+    toxicity_spread_padding,
 )
 from mm_engine.strategy.base import Quote, QuotingStrategy
 from mm_engine.strategy.symmetric import SymmetricQuoter, SymmetricQuoterConfig
@@ -24,4 +25,5 @@ __all__ = [
     "optimal_quote_offsets",
     "reservation_price",
     "sigma_to_price_units",
+    "toxicity_spread_padding",
 ]

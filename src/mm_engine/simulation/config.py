@@ -17,3 +17,5 @@ class SimulationConfig:
 
     costs: TransactionCostConfig = TransactionCostConfig()
     quote_latency_ns: int = 0
+    enable_toxicity_monitor: bool = False
+    toxicity_window: int = 20

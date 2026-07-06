@@ -26,6 +26,8 @@ class AvellanedaStoikovConfig:
     # Convert log-return sigma to price units (sigma * mid) for AS formulas.
     sigma_in_price_units: bool = True
     max_quote_distance_pct: float = 0.15
+    use_toxicity_widening: bool = True
+    toxicity_widen_bps: float = 25.0
 
 
 class AvellanedaStoikovQuoter:
@@ -41,6 +43,7 @@ class AvellanedaStoikovQuoter:
             window=self.config.vol_window,
             default_sigma=self.config.sigma,
         )
+        self._toxicity_level: float = 0.0
 
     def should_requote(self, event: MarketEvent, book: OrderBook) -> bool:
         mid = book.mid_price
@@ -77,6 +80,15 @@ class AvellanedaStoikovQuoter:
             tau,
         )
 
+        if self.config.use_toxicity_widening and self._toxicity_level > 0.0:
+            padding = toxicity_spread_padding(
+                self._toxicity_level,
+                mid,
+                self.config.toxicity_widen_bps,
+            )
+            delta_bid += padding
+            delta_ask += padding
+
         bid_price = _clamp_to_mid(reservation - delta_bid, mid, self.config.max_quote_distance_pct)
         ask_price = _clamp_to_mid(reservation + delta_ask, mid, self.config.max_quote_distance_pct)
         if bid_price <= 0 or ask_price <= 0 or bid_price >= ask_price:
@@ -109,6 +121,9 @@ class AvellanedaStoikovQuoter:
 
     def note_timestamp(self, timestamp: int) -> None:
         self._last_timestamp = timestamp
+
+    def set_toxicity_level(self, level: float) -> None:
+        self._toxicity_level = min(max(level, 0.0), 1.0)
 
 
 def sigma_to_price_units(sigma_log: float, mid_price: float) -> float:
@@ -143,6 +158,12 @@ def optimal_quote_offsets(
     delta_ask = intensity - ((2 * inventory - 1) / 2.0) * inv_term
     reservation = reservation_price(mid_price, inventory, gamma, sigma, time_remaining)
     return reservation, delta_bid, delta_ask
+
+
+def toxicity_spread_padding(toxicity_level: float, mid_price: float, widen_bps: float) -> float:
+    """Extra half-spread padding in price units when flow looks toxic."""
+    clamped = min(max(toxicity_level, 0.0), 1.0)
+    return mid_price * (widen_bps / 10_000.0) * clamped
 
 
 def _clamp_to_mid(price: float, mid_price: float, max_distance_pct: float) -> float:
