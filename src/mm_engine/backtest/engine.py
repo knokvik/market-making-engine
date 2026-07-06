@@ -9,15 +9,23 @@ from mm_engine.order_book import OrderBook
 from mm_engine.performance import PerformanceSummary, summarize_performance
 from mm_engine.simulation.config import SimulationConfig
 from mm_engine.simulation.latency import QuoteLatencyQueue
+from mm_engine.simulation.toxicity import ToxicityMonitor
 from mm_engine.strategy.base import QuotingStrategy
 from mm_engine.strategy.symmetric import SymmetricQuoter
 from mm_engine.types import Fill, Side
 
 
 @dataclass
+class ToxicitySnapshot:
+    timestamp: int
+    level: float
+
+
+@dataclass
 class BacktestResult:
     pnl_curve: List[PnLSnapshot] = field(default_factory=list)
     fills: List[Fill] = field(default_factory=list)
+    toxicity_curve: List[ToxicitySnapshot] = field(default_factory=list)
     summary: Optional[PerformanceSummary] = None
 
 
@@ -40,12 +48,16 @@ class BacktestEngine:
         self._our_order_id = our_order_id_start
         self._our_orders: Set[int] = set()
         self._active_quotes: Dict[Side, int] = {}
+        self._toxicity_monitor: Optional[ToxicityMonitor] = None
+        if self.simulation.enable_toxicity_monitor:
+            self._toxicity_monitor = ToxicityMonitor(window=self.simulation.toxicity_window)
 
     def run(self, events: Iterable[MarketEvent]) -> BacktestResult:
         event_list = list(events)
         self._configure_strategy_session(event_list)
 
         pnl_curve: List[PnLSnapshot] = []
+        toxicity_curve: List[ToxicitySnapshot] = []
         our_fills: List[Fill] = []
 
         for event in event_list:
@@ -56,6 +68,7 @@ class BacktestEngine:
 
             market_fills = self._apply_market_event(event)
             self._process_market_fills(market_fills)
+            self._update_toxicity(event, toxicity_curve)
 
             self._notify_strategy(event)
             if self.strategy.should_requote(event, self.book):
@@ -74,7 +87,12 @@ class BacktestEngine:
             self._record_our_fill(fill)
 
         summary = summarize_performance(pnl_curve, self.inventory.state)
-        return BacktestResult(pnl_curve=pnl_curve, fills=our_fills, summary=summary)
+        return BacktestResult(
+            pnl_curve=pnl_curve,
+            fills=our_fills,
+            toxicity_curve=toxicity_curve,
+            summary=summary,
+        )
 
     def _configure_strategy_session(self, events: List[MarketEvent]) -> None:
         if not events:
@@ -87,6 +105,16 @@ class BacktestEngine:
         note_timestamp = getattr(self.strategy, "note_timestamp", None)
         if callable(note_timestamp):
             note_timestamp(event.timestamp)
+
+    def _update_toxicity(self, event: MarketEvent, toxicity_curve: List[ToxicitySnapshot]) -> None:
+        if self._toxicity_monitor is None:
+            return
+        self._toxicity_monitor.on_market_event(event)
+        level = self._toxicity_monitor.level()
+        toxicity_curve.append(ToxicitySnapshot(timestamp=event.timestamp, level=level))
+        set_toxicity = getattr(self.strategy, "set_toxicity_level", None)
+        if callable(set_toxicity):
+            set_toxicity(level)
 
     def _apply_market_event(self, event: MarketEvent) -> List[Fill]:
         if event.event_type is EventType.ADD:
