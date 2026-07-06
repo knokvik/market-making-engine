@@ -1,0 +1,15 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Connect repo: https://github.com/knokvik/market-making-engine
+services:
+  - type: web
+    name: mm-engine-dashboard
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHONPATH
+        value: /app/src:/app
+      - key: PORT
+        value: "8000"

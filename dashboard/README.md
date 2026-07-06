@@ -53,3 +53,23 @@ Open http://localhost:5173
 | POST | `/api/control` | play, pause, step, seek, reset |
 | GET | `/api/frame` | Current telemetry frame |
 | WS | `/ws/replay` | Streaming frame updates |
+
+## Deploy online (Render)
+
+The repo includes a `Dockerfile` and `render.yaml` for one-service hosting (API + WebSocket + built UI).
+
+1. Push is on `main` at https://github.com/knokvik/market-making-engine
+2. Open https://dashboard.render.com/select-repo?type=blueprint
+3. Connect the repo — Render applies `render.yaml` automatically
+4. Wait for the Docker build (~5–8 min)
+5. Open the generated URL (e.g. `https://mm-engine-dashboard.onrender.com`)
+
+**Local production test:**
+
+```bash
+docker build -t mm-engine-dashboard .
+docker run --rm -p 8000:8000 mm-engine-dashboard
+# open http://localhost:8000
+```
+
+Or run `bash scripts/deploy_render.sh` for the checklist.

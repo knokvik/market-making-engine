@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.git
+.grok
+node_modules
+dashboard/web/node_modules
+dashboard/web/dist
+*.md
+!README.md
+tests
+scripts/run_dashboard_api.sh

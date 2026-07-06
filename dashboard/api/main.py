@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from mm_engine.feed.live.chart_history import fetch_chart_history
@@ -650,7 +651,15 @@ async def replay_socket(websocket: WebSocket) -> None:
             ctrl.set_auto_trade(False)
 
 
+_FRONTEND_DIST = ROOT / "dashboard" / "web" / "dist"
+if _FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIST, html=True), name="frontend")
+
+
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("dashboard.api.main:app", host="0.0.0.0", port=port, reload=False)

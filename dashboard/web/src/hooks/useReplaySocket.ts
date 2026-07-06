@@ -5,8 +5,7 @@ import { normalizeFrame } from './normalizeFrame'
 function wsUrl(): string {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  if (import.meta.env.DEV) return `${proto}://${window.location.host}/ws/replay`
-  return `${proto}://${window.location.hostname}:8000/ws/replay`
+  return `${proto}://${window.location.host}/ws/replay`
 }
 
 const RECONNECT_MS = 2000
