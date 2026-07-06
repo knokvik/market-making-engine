@@ -1,15 +1,16 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
-# Connect repo: https://github.com/knokvik/market-making-engine
+# Deploy: https://dashboard.render.com/select-repo?type=blueprint
+# IMPORTANT: Root Directory must be EMPTY. Do NOT put a start command there.
 services:
   - type: web
     name: mm-engine-dashboard
     runtime: docker
     plan: free
     region: oregon
+    rootDir: .
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/health
     envVars:
       - key: PYTHONPATH
         value: /app/src:/app
-      - key: PORT
-        value: "8000"
