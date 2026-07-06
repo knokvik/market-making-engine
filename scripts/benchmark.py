@@ -157,6 +157,36 @@ def bench_stress_test_three_regimes() -> BenchmarkResult:
     )
 
 
+def bench_toxicity_widens_spreads() -> BenchmarkResult:
+    from mm_engine.order_book import OrderBook
+    from mm_engine.strategy import AvellanedaStoikovConfig, AvellanedaStoikovQuoter
+
+    book = OrderBook()
+    book.add_limit_order(Side.ASK, 100.0, 10, order_id=1)
+    book.add_limit_order(Side.BID, 99.8, 10, order_id=2)
+
+    clean = AvellanedaStoikovQuoter(
+        AvellanedaStoikovConfig(use_volatility_estimator=False, use_toxicity_widening=True)
+    )
+    toxic = AvellanedaStoikovQuoter(
+        AvellanedaStoikovConfig(use_volatility_estimator=False, use_toxicity_widening=True)
+    )
+    toxic.set_toxicity_level(1.0)
+
+    quote_clean = clean.compute_quote(book, position=0)
+    quote_toxic = toxic.compute_quote(book, position=0)
+    assert quote_clean is not None and quote_toxic is not None
+
+    spread_clean = quote_clean.ask_price - quote_clean.bid_price
+    spread_toxic = quote_toxic.ask_price - quote_toxic.bid_price
+    ok = spread_toxic > spread_clean
+    return BenchmarkResult(
+        "toxicity spread widening",
+        ok,
+        f"spread clean={spread_clean:.4f} toxic={spread_toxic:.4f}",
+    )
+
+
 def bench_implementation_audit() -> BenchmarkResult:
     from mm_engine.backtest import BacktestEngine
     from mm_engine.stress.regimes import load_or_generate_regime
@@ -184,6 +214,7 @@ BENCHMARKS: List[Callable[[], BenchmarkResult]] = [
     bench_fees_reduce_pnl,
     bench_latency_delays_or_reduces_fills,
     bench_as_inventory_risk,
+    bench_toxicity_widens_spreads,
     bench_stress_test_three_regimes,
 ]
 
