@@ -13,6 +13,13 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 viz = ["matplotlib>=3.8"]
+dashboard = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "websockets>=12.0",
+    "psutil>=5.9",
+    "pydantic>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
