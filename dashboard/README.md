@@ -73,3 +73,22 @@ docker run --rm -p 8000:8000 mm-engine-dashboard
 ```
 
 Or run `bash scripts/deploy_render.sh` for the checklist.
+
+## Deploy frontend on Vercel
+
+The Python API + WebSocket **cannot** run on Vercel serverless (stateful replay + WS).
+Use **Vercel for the UI** and **Render for the API** (see above).
+
+1. Deploy API first on Render → note the URL (e.g. `https://mm-engine-dashboard.onrender.com`)
+2. In `vercel.json`, set the rewrite `destination` to your Render API URL
+3. [vercel.com/new](https://vercel.com/new) → Import `knokvik/market-making-engine`
+4. **Root Directory:** `dashboard/web` (or use repo-root `vercel.json`)
+5. **Environment Variables:**
+   - `VITE_WS_URL` = `wss://YOUR-RENDER-URL.onrender.com/ws/replay`
+6. Deploy
+
+| File | Purpose |
+|---|---|
+| `vercel.json` (repo root) | Monorepo deploy from GitHub root |
+| `dashboard/web/vercel.json` | Deploy with Root Directory = `dashboard/web` |
+| `dashboard/web/.env.example` | Required env vars |
