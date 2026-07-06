@@ -110,20 +110,19 @@ class StressTestRunner:
 
 def format_comparison_table(comparison: RegimeComparison) -> str:
     header = (
-        f"{'regime':<10} {'strategy':<18} {'return':>8} {'sharpe':>8} "
-        f"{'max_dd':>8} {'avg_inv':>8} {'max_inv':>8} {'fills':>6} {'fees':>8}"
+        f"{'regime':<10} {'strategy':<18} {'return':>8} {'max_dd':>8} "
+        f"{'avg_inv':>8} {'fills':>6} {'realized':>9} {'unrealized':>10} {'$/fill':>8}"
     )
     lines = [header, "-" * len(header)]
     for item in comparison.results:
-        sharpe = item.summary.sharpe_ratio
-        sharpe_text = f"{sharpe:8.3f}" if sharpe is not None else "     n/a"
         lines.append(
             f"{item.regime:<10} {item.strategy:<18} "
-            f"{item.summary.total_return:8.4f} {sharpe_text} "
-            f"{item.summary.max_drawdown:8.4f} "
+            f"{item.summary.total_return:8.2f} "
+            f"{item.summary.max_drawdown:8.2f} "
             f"{item.summary.avg_abs_inventory:8.2f} "
-            f"{item.summary.max_abs_inventory:8d} "
             f"{item.summary.fill_count:6d} "
-            f"{item.summary.total_transaction_costs:8.4f}"
+            f"{item.summary.spread_capture_pnl:9.2f} "
+            f"{item.summary.inventory_risk_pnl:10.2f} "
+            f"{item.summary.loss_per_fill:8.2f}"
         )
     return "\n".join(lines)

@@ -21,6 +21,12 @@ class PerformanceSummary:
     final_position: int
     final_realized_pnl: float
     total_transaction_costs: float
+    final_unrealized_pnl: float
+    pnl_positive_steps: int
+    pnl_negative_steps: int
+    loss_per_fill: float
+    spread_capture_pnl: float
+    inventory_risk_pnl: float
 
 
 def summarize_performance(
@@ -41,6 +47,12 @@ def summarize_performance(
             final_position=inventory.position,
             final_realized_pnl=inventory.realized_pnl,
             total_transaction_costs=inventory.transaction_costs,
+            final_unrealized_pnl=0.0,
+            pnl_positive_steps=0,
+            pnl_negative_steps=0,
+            loss_per_fill=0.0,
+            spread_capture_pnl=0.0,
+            inventory_risk_pnl=0.0,
         )
 
     pnl_values = [point.mark_to_market_pnl for point in pnl_curve]
@@ -53,6 +65,12 @@ def summarize_performance(
     sharpe = _sharpe_ratio(returns)
     max_drawdown = _max_drawdown(pnl_values)
     abs_positions = [abs(point.position) for point in pnl_curve]
+    last = pnl_curve[-1]
+    spread_capture = last.realized_pnl
+    inventory_risk = last.unrealized_pnl
+    positive_steps = sum(1 for delta in returns if delta > 0)
+    negative_steps = sum(1 for delta in returns if delta < 0)
+    fills = max(inventory.fill_count, 1)
 
     return PerformanceSummary(
         observations=len(pnl_curve),
@@ -67,6 +85,12 @@ def summarize_performance(
         final_position=inventory.position,
         final_realized_pnl=inventory.realized_pnl,
         total_transaction_costs=inventory.transaction_costs,
+        final_unrealized_pnl=last.unrealized_pnl,
+        pnl_positive_steps=positive_steps,
+        pnl_negative_steps=negative_steps,
+        loss_per_fill=total_return / fills,
+        spread_capture_pnl=spread_capture,
+        inventory_risk_pnl=inventory_risk,
     )
 
 
