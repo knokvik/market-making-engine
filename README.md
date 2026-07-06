@@ -11,6 +11,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 | Week 3: Avellaneda-Stoikov layer | Done |
 | Week 4: Transaction costs + realism | Done |
 | Week 5: Multi-regime stress tests | Done |
+| Week 6: Adverse selection + reporting | Done |
 
 ## Architecture
 
@@ -111,6 +112,28 @@ pytest -v
 python scripts/run_stress_test.py
 python scripts/benchmark.py
 ```
+
+## Week 6: Adverse Selection + Reporting
+
+- `simulation/toxicity.py` — rolling buy/sell volume imbalance (VPIN-style proxy in [0, 1])
+- A-S quoter widens both sides when toxicity rises (`toxicity_widen_bps`)
+- `reporting/export.py` — CSV export of PnL curve + summary sidecar
+- `scripts/plot_backtest.py` — PnL, inventory, and toxicity charts (requires `pip install -e ".[viz]"`)
+- `scripts/run_lobster_backtest.py` — A-S backtest on LOBSTER message feed
+
+```bash
+python scripts/run_lobster_backtest.py data/sample_lobster.csv --toxicity
+python scripts/plot_backtest.py data/sample_session.csv --toxicity --export-csv results/curve.csv
+python scripts/benchmark.py
+```
+
+Interview anchors:
+- **Adverse selection** — informed flow lifts toxicity; widen spreads to reduce pick-off risk
+- **VPIN proxy** — rolling volume imbalance flags one-sided aggressive flow
+- **PnL decomposition** — separate spread capture (realized) from inventory risk (unrealized)
+
+Resume bullet template:
+> Built a limit-order-book market-making simulator with Avellaneda-Stoikov inventory-optimal quoting, transaction-cost realism, multi-regime stress testing, and VPIN-style adverse-selection controls; validated skew sign, fee accounting, and mark-to-market identity via an automated audit checklist.
 
 ## References
 
