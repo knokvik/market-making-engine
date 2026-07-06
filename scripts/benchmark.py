@@ -12,6 +12,7 @@ from mm_engine.backtest import BacktestEngine
 from mm_engine.feed import load_csv_feed
 from mm_engine.order_book import OrderBook
 from mm_engine.simulation.config import SimulationConfig, TransactionCostConfig
+from mm_engine.audit import run_implementation_audit
 from mm_engine.stress import StressTestRunner
 from mm_engine.stress.runner import format_comparison_table
 from mm_engine.strategy import AvellanedaStoikovConfig, AvellanedaStoikovQuoter, SymmetricQuoter, SymmetricQuoterConfig
@@ -156,8 +157,28 @@ def bench_stress_test_three_regimes() -> BenchmarkResult:
     )
 
 
+def bench_implementation_audit() -> BenchmarkResult:
+    from mm_engine.backtest import BacktestEngine
+    from mm_engine.stress.regimes import load_or_generate_regime
+    from mm_engine.strategy import AvellanedaStoikovConfig, AvellanedaStoikovQuoter
+
+    events = list(load_or_generate_regime("normal", ROOT / "data" / "regimes"))
+    result = BacktestEngine(
+        strategy=AvellanedaStoikovQuoter(AvellanedaStoikovConfig(quote_size=5))
+    ).run(events)
+    checks = run_implementation_audit(result.pnl_curve)
+    passed = sum(1 for check in checks if check.passed)
+    ok = passed == len(checks)
+    return BenchmarkResult(
+        "implementation audit",
+        ok,
+        f"{passed}/{len(checks)} checks passed",
+    )
+
+
 BENCHMARKS: List[Callable[[], BenchmarkResult]] = [
     bench_pytest,
+    bench_implementation_audit,
     bench_queue_position_fifo,
     bench_backtest_produces_curve,
     bench_fees_reduce_pnl,
