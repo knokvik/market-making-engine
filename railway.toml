@@ -1,0 +1,13 @@
+# Railway — typically wakes in seconds, not minutes.
+# Deploy: https://railway.com/new → Deploy from GitHub → uses Dockerfile
+# Hobby plan (~$5/mo) keeps the service always on.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
