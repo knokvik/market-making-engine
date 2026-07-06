@@ -21,3 +21,7 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Dashboard frontend
+dashboard/web/node_modules/
+dashboard/web/dist/

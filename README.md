@@ -12,6 +12,7 @@ Limit-order-book simulator for inventory-risk optimal quoting (Avellaneda-Stoiko
 | Week 4: Transaction costs + realism | Done |
 | Week 5: Multi-regime stress tests | Done |
 | Week 6: Adverse selection + reporting | Done |
+| Week 7: Trading operations dashboard | Done |
 
 ## Architecture
 
@@ -134,6 +135,24 @@ Interview anchors:
 
 Resume bullet template:
 > Built a limit-order-book market-making simulator with Avellaneda-Stoikov inventory-optimal quoting, transaction-cost realism, multi-regime stress testing, and VPIN-style adverse-selection controls; validated skew sign, fee accounting, and mark-to-market identity via an automated audit checklist.
+
+## Week 7: Trading Operations Dashboard
+
+Premium command-center UI for live replay demos and interview presentations.
+
+- `dashboard/web/` — React + TypeScript + Tailwind + Framer Motion + ECharts + React Flow
+- `dashboard/api/` — FastAPI + WebSocket streaming from the replay controller
+- `src/mm_engine/replay/` — steppable backtest session with rich per-frame telemetry
+
+```bash
+# Terminal 1 — API
+bash scripts/run_dashboard_api.sh
+
+# Terminal 2 — UI
+cd dashboard/web && npm run dev
+```
+
+Open http://localhost:5173
 
 ## References
 
