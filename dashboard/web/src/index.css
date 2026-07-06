@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0b0d10;
+  overflow: hidden;
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-xl border border-desk-border/80 bg-desk-panel/70 backdrop-blur-glass shadow-glow;
+  }
+
+  .metric-label {
+    @apply text-[10px] uppercase tracking-wider text-desk-muted font-medium;
+  }
+
+  .metric-value {
+    @apply font-mono text-sm font-semibold;
+  }
+
+  .neon-profit {
+    @apply text-desk-profit;
+    text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+  }
+
+  .neon-loss {
+    @apply text-desk-loss;
+    text-shadow: 0 0 8px rgba(255, 59, 92, 0.4);
+  }
+
+  .neon-info {
+    @apply text-desk-info;
+  }
+
+  .neon-warn {
+    @apply text-desk-warn;
+  }
+
+  .sidebar-toggle {
+    @apply flex items-center gap-2 rounded-lg border border-desk-border/60 px-2.5 py-1.5 text-xs transition hover:border-desk-info/40 hover:bg-white/5;
+  }
+
+  .sidebar-toggle.active {
+    @apply border-desk-info/50 bg-desk-info/10 text-desk-info;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a3140;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
