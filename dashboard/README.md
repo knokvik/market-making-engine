@@ -41,6 +41,7 @@ Open http://localhost:5173
 - **Performance & execution analytics** — PnL decomposition, Sharpe/Sortino, queue position, fill probability
 - **Architecture view** — React Flow pipeline diagram
 - **Overlay toggles** — 15 analytical layers (depth, toxicity, regime, etc.)
+- **Drag & resize panels** — rearrange via panel headers, resize corners, layout persists in localStorage
 
 ## API Endpoints
 

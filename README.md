@@ -154,6 +154,8 @@ cd dashboard/web && npm run dev
 
 Open http://localhost:5173
 
+Drag panel headers to rearrange; resize from corners. Run `python scripts/detailed_benchmark.py` for the full 17-check validation suite.
+
 ## References
 
 - Avellaneda & Stoikov (2008), *High-frequency trading in a limit order book*
