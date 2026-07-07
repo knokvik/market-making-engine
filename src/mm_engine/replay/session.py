@@ -54,6 +54,7 @@ class ReplayConfig:
     max_inventory: int = 100
     half_spread: float = 0.05
     enable_toxicity: bool = True
+    competitive_quoting: bool = True
     quote_latency_ns: int = 0
 
 
@@ -196,6 +197,7 @@ class ReplayController:
                     quote_size=self.config.quote_size,
                     max_inventory=self.config.max_inventory,
                     use_toxicity_widening=self.config.enable_toxicity,
+                    competitive_quoting=self.config.competitive_quoting,
                 )
             )
         return BacktestEngine(strategy=strategy, simulation=simulation)

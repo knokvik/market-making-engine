@@ -3,6 +3,7 @@
 from mm_engine.strategy.avellaneda_stoikov import (
     AvellanedaStoikovConfig,
     AvellanedaStoikovQuoter,
+    cap_deltas_to_book,
     optimal_half_spread,
     optimal_quote_offsets,
     reservation_price,
@@ -21,6 +22,7 @@ __all__ = [
     "RollingVolatility",
     "SymmetricQuoter",
     "SymmetricQuoterConfig",
+    "cap_deltas_to_book",
     "optimal_half_spread",
     "optimal_quote_offsets",
     "reservation_price",

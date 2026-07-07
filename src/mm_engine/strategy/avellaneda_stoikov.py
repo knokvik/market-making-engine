@@ -28,6 +28,8 @@ class AvellanedaStoikovConfig:
     max_quote_distance_pct: float = 0.15
     use_toxicity_widening: bool = True
     toxicity_widen_bps: float = 25.0
+    competitive_quoting: bool = False
+    max_spread_multiple: float = 1.0
 
 
 class AvellanedaStoikovQuoter:
@@ -78,6 +80,14 @@ class AvellanedaStoikovQuoter:
             self.config.k,
             sigma,
             tau,
+        )
+
+        delta_bid, delta_ask = cap_deltas_to_book(
+            delta_bid,
+            delta_ask,
+            book.spread,
+            competitive=self.config.competitive_quoting,
+            max_multiple=self.config.max_spread_multiple,
         )
 
         if self.config.use_toxicity_widening and self._toxicity_level > 0.0:
@@ -158,6 +168,30 @@ def optimal_quote_offsets(
     delta_ask = intensity - ((2 * inventory - 1) / 2.0) * inv_term
     reservation = reservation_price(mid_price, inventory, gamma, sigma, time_remaining)
     return reservation, delta_bid, delta_ask
+
+
+def cap_deltas_to_book(
+    delta_bid: float,
+    delta_ask: float,
+    book_spread: Optional[float],
+    *,
+    competitive: bool,
+    max_multiple: float,
+) -> Tuple[float, float]:
+    """Cap average half-spread to book width while preserving inventory asymmetry."""
+    if not competitive or book_spread is None or book_spread <= 0:
+        return max(delta_bid, 1e-9), max(delta_ask, 1e-9)
+
+    half_market = book_spread / 2.0
+    cap = half_market * max(max_multiple, 0.05)
+    avg_half = (delta_bid + delta_ask) / 2.0
+    if avg_half <= cap * 3.0:
+        return max(delta_bid, 1e-9), max(delta_ask, 1e-9)
+    asymmetry = (delta_bid - delta_ask) / 2.0
+    avg_half = min(max(avg_half, cap * 0.2), cap)
+    delta_bid = max(avg_half + asymmetry, 1e-9)
+    delta_ask = max(avg_half - asymmetry, 1e-9)
+    return delta_bid, delta_ask
 
 
 def toxicity_spread_padding(toxicity_level: float, mid_price: float, widen_bps: float) -> float:
