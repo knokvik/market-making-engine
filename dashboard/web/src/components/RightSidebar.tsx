@@ -12,7 +12,7 @@ export function RightSidebar({ frame }: RightSidebarProps) {
   const riskTone = frame && frame.risk_score > 60 ? 'loss' : frame && frame.risk_score > 35 ? 'warn' : 'info'
 
   return (
-    <GlassPanel title="Risk & Inventory" className="h-full w-64 shrink-0">
+    <GlassPanel title="Risk & Inventory" className="h-full">
       <div className="space-y-2 p-2">
         <MetricCard label="Inventory" value={frame?.position ?? 0} tone={frame && frame.position > 0 ? 'warn' : frame && frame.position < 0 ? 'info' : 'neutral'} />
         <MetricCard label="Avg Inventory" value={(frame?.avg_abs_inventory ?? 0).toFixed(2)} />

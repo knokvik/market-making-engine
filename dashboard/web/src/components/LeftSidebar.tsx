@@ -10,7 +10,7 @@ interface LeftSidebarProps {
 
 export function LeftSidebar({ overlays, onToggle }: LeftSidebarProps) {
   return (
-    <GlassPanel title="Strategy Layers" className="h-full w-56 shrink-0" action={<Layers size={14} className="text-desk-muted" />}>
+    <GlassPanel title="Strategy Layers" className="h-full" action={<Layers size={14} className="text-desk-muted" />}>
       <div className="space-y-1 p-2">
         {OVERLAY_OPTIONS.map((option) => (
           <button

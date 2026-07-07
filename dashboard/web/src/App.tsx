@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArchitectureView } from './components/ArchitectureView'
+import { DashboardLayout } from './components/DashboardLayout'
 import { EventFeed } from './components/EventFeed'
 import { ExecutionPanel } from './components/ExecutionPanel'
 import { LeftSidebar } from './components/LeftSidebar'
@@ -29,6 +30,32 @@ export default function App() {
     setOverlays((prev) => ({ ...prev, [key]: !prev[key] }))
   }, [])
 
+  const panels = useMemo(
+    () => ({
+      leftSidebar: <LeftSidebar overlays={overlays} onToggle={toggleOverlay} />,
+      centerChart: (
+        <GlassPanel className="h-full" title="Market Microstructure">
+          <MicrostructureChart frame={frame} overlays={overlays} />
+        </GlassPanel>
+      ),
+      rightSidebar: <RightSidebar frame={frame} />,
+      replayToolbar: (
+        <div className="h-full overflow-hidden rounded-xl border border-desk-border/60 bg-desk-panel/70 backdrop-blur-glass">
+          <ReplayToolbar
+            frame={frame}
+            datasets={datasets}
+            onControl={control}
+            onConfigure={configure}
+          />
+        </div>
+      ),
+      eventFeed: <EventFeed events={frame?.events ?? []} />,
+      performance: <PerformancePanel frame={frame} />,
+      execution: <ExecutionPanel frame={frame} />,
+    }),
+    [frame, overlays, datasets, control, configure, toggleOverlay],
+  )
+
   return (
     <div className="flex h-screen flex-col bg-desk-bg">
       <TopNav frame={frame} connected={connected} onSettings={() => setShowSettings((s) => !s)} />
@@ -50,39 +77,16 @@ export default function App() {
             Regime: {frame.regime.replace('_', ' ')}
           </motion.span>
         )}
-      </div>
-
-      <div className="flex min-h-0 flex-1 gap-2 p-2">
-        {tab === 'trading' ? (
-          <>
-            <LeftSidebar overlays={overlays} onToggle={toggleOverlay} />
-
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <GlassPanel className="min-h-0 flex-1" title="Market Microstructure">
-                <MicrostructureChart frame={frame} overlays={overlays} />
-              </GlassPanel>
-              <ReplayToolbar
-                frame={frame}
-                datasets={datasets}
-                onControl={control}
-                onConfigure={configure}
-              />
-            </div>
-
-            <RightSidebar frame={frame} />
-          </>
-        ) : (
-          <div className="flex-1">
-            <ArchitectureView />
-          </div>
+        {tab === 'trading' && (
+          <span className="text-[10px] text-desk-muted">Drag panel headers · resize corners</span>
         )}
       </div>
 
-      {tab === 'trading' && (
-        <div className="grid h-52 shrink-0 grid-cols-3 gap-2 px-2 pb-2">
-          <EventFeed events={frame?.events ?? []} />
-          <PerformancePanel frame={frame} />
-          <ExecutionPanel frame={frame} />
+      {tab === 'trading' ? (
+        <DashboardLayout panels={panels} />
+      ) : (
+        <div className="min-h-0 flex-1 p-2">
+          <ArchitectureView />
         </div>
       )}
 
@@ -104,7 +108,7 @@ export default function App() {
             >
               <h2 className="mb-3 text-sm font-semibold">Session Settings</h2>
               <div className="space-y-3 text-xs text-desk-muted">
-                <p>Strategy parameters are controlled via the replay API. Use the toolbar to switch datasets and strategies.</p>
+                <p>Drag panel headers to rearrange. Resize from bottom-right corner. Layout persists in browser storage.</p>
                 <label className="flex items-center justify-between">
                   Toxicity Monitor
                   <input
