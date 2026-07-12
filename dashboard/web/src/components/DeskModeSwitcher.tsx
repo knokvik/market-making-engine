@@ -1,10 +1,10 @@
 import { Database, ScrollText, Wifi } from 'lucide-react'
 import type { DataMode } from '../types'
 
-const MODES: { id: DataMode; label: string; icon: React.ReactNode }[] = [
-  { id: 'replay', label: 'Replay', icon: <Database size={12} /> },
-  { id: 'paper', label: 'Paper', icon: <ScrollText size={12} /> },
-  { id: 'live', label: 'Live', icon: <Wifi size={12} /> },
+const MODES: { id: DataMode; label: string; icon: (isActive: boolean) => React.ReactNode }[] = [
+  { id: 'replay', label: 'Replay', icon: () => <Database size={12} /> },
+  { id: 'paper', label: 'Paper', icon: () => <ScrollText size={12} /> },
+  { id: 'live', label: 'Live', icon: (isActive) => <Wifi size={12} className={isActive ? 'animate-pulse' : ''} /> },
 ]
 
 interface DeskModeSwitcherProps {
@@ -25,12 +25,12 @@ export function DeskModeSwitcher({ mode, onChange }: DeskModeSwitcherProps) {
               ? m.id === 'live'
                 ? 'bg-desk-loss/15 text-desk-loss'
                 : m.id === 'paper'
-                  ? 'bg-desk-warn/15 text-desk-warn'
-                  : 'bg-desk-profit/15 text-desk-profit'
+                  ? 'bg-desk-profit/15 text-desk-profit'
+                  : 'bg-desk-warn/15 text-desk-warn'
               : 'text-desk-muted hover:text-desk-text'
           }`}
         >
-          {m.icon}
+          {m.icon(mode === m.id)}
           {m.label}
         </button>
       ))}
