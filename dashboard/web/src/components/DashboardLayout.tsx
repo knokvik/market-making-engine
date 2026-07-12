@@ -246,6 +246,7 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
   const savedHeights = useRef<Partial<Record<PanelId, number>>>({})
   const preDragLayout = useRef<LayoutItem[] | null>(null)
   const draggedItemId = useRef<string | null>(null)
+  const currentSwapTarget = useRef<string | null>(null)
 
   const contentRows = useMemo(() => layoutExtent(layout), [layout])
 
@@ -297,15 +298,56 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
     (_next: Layout, oldItem: LayoutItem | null) => {
       preDragLayout.current = cloneLayout(layout)
       draggedItemId.current = oldItem?.i ?? null
+      currentSwapTarget.current = null
       if (DEBUG_GRID && oldItem) console.log('[grid-drag] start', oldItem.i)
     },
     [layout],
   )
 
-  const handleDrag = useCallback((_next: Layout) => {
-    // No-op: don't rearrange other panels during drag.
-    // react-draggable still moves the dragged item visually via direct DOM transforms.
-  }, [])
+  const handleDrag = useCallback(
+    (_next: Layout, _oldItem: LayoutItem | null, newItem: LayoutItem | null) => {
+      const original = preDragLayout.current
+      const draggedId = draggedItemId.current
+      if (!original || !draggedId || !newItem) return
+
+      const draggedOriginal = original.find((it) => it.i === draggedId)
+      if (!draggedOriginal) return
+
+      // Find which original panel the dragged item currently overlaps with most
+      let bestOverlap = 0
+      let swapTargetId: string | null = null
+
+      for (const item of original) {
+        if (item.i === draggedId) continue
+        const overlap = rectOverlapArea(newItem, item)
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap
+          swapTargetId = item.i
+        }
+      }
+
+      // Skip re-render if the swap target hasn't changed
+      if (swapTargetId === currentSwapTarget.current) return
+      currentSwapTarget.current = swapTargetId
+
+      // Build live preview layout from the original snapshot:
+      // – swap target moves to the dragged item's original slot
+      // – everything else stays at its original position
+      // – react-draggable handles the dragged item's visual position independently
+      const preview = original.map((item) => {
+        if (item.i === draggedId) {
+          return { ...item, x: newItem.x, y: newItem.y }
+        }
+        if (swapTargetId && item.i === swapTargetId) {
+          return { ...item, x: draggedOriginal.x, y: draggedOriginal.y, w: draggedOriginal.w, h: draggedOriginal.h }
+        }
+        return { ...item }
+      })
+
+      setLayout(preview)
+    },
+    [],
+  )
 
   const handleDragStop = useCallback(
     (next: Layout, _oldItem: LayoutItem | null, newItem: LayoutItem | null) => {
@@ -313,6 +355,7 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
       const draggedId = draggedItemId.current
       preDragLayout.current = null
       draggedItemId.current = null
+      currentSwapTarget.current = null
 
       if (!original || !draggedId || !newItem) {
         persistLayout(next)
@@ -325,13 +368,13 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
         return
       }
 
-      // Dropped back on its own slot — no change needed
+      // Dropped back on its own slot — restore original
       if (newItem.x === draggedOriginal.x && newItem.y === draggedOriginal.y) {
         setLayout(cloneLayout(original))
         return
       }
 
-      // Find which original panel the dragged item now overlaps with most
+      // Find which original panel the dragged item overlaps with most
       let bestOverlap = 0
       let swapTargetId: string | null = null
 
@@ -359,9 +402,15 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
         })
         persistLayout(swapped)
       } else {
-        // No overlap target — restore original layout unchanged
-        if (DEBUG_GRID) console.log('[grid-drag] no swap target, restoring')
-        setLayout(cloneLayout(original))
+        // No overlap target — move dragged item to the empty drop position
+        if (DEBUG_GRID) console.log('[grid-drag] move to empty space', draggedId)
+        const moved = original.map((item) => {
+          if (item.i === draggedId) {
+            return { ...item, x: newItem.x, y: newItem.y }
+          }
+          return { ...item }
+        })
+        persistLayout(moved)
       }
     },
     [persistLayout],
