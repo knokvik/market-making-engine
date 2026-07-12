@@ -125,41 +125,7 @@ function cloneLayout(items: LayoutItem[]): LayoutItem[] {
   return items.map((item) => ({ ...item }))
 }
 
-function isCorrupted(raw: LayoutItem[], defaults: Map<string, LayoutItem>, minPanels: number): boolean {
-  if (!Array.isArray(raw) || raw.length < minPanels) return true
-  const ids = new Set<string>()
-  for (const item of raw) {
-    if (!item?.i || ids.has(item.i) || !defaults.has(item.i)) return true
-    ids.add(item.i)
-    const h = item.h ?? 1
-    const w = item.w ?? 1
-    if (h > 16 || w > GRID_COLS || (item.x ?? 0) < 0 || (item.y ?? 0) < 0) return true
-    if (w >= GRID_COLS && h >= 10) return true
-  }
-  return false
-}
 
-function sanitizeLayout(raw: LayoutItem[], mode: LayoutMode): LayoutItem[] {
-  const { defaultLayout, panelOrder } = layoutConfig(mode)
-  const defaults = new Map(defaultLayout.map((d) => [d.i, d]))
-  if (isCorrupted(raw, defaults, Math.min(panelOrder.length, 6))) return cloneLayout(defaultLayout)
-
-  const seen = new Set<string>()
-  const result: LayoutItem[] = []
-
-  for (const item of raw) {
-    if (!item?.i || seen.has(item.i)) continue
-    seen.add(item.i)
-    const def = defaults.get(item.i)
-    if (!def) continue
-    result.push(clampItem({ ...def, ...item }, defaults))
-  }
-
-  for (const def of defaultLayout) {
-    if (!seen.has(def.i)) result.push({ ...def })
-  }
-  return result
-}
 
 function clampItem(item: LayoutItem, defaults: Map<string, LayoutItem>): LayoutItem {
   const def = defaults.get(item.i)
