@@ -205,13 +205,7 @@ function clearOldLayoutKeys() {
 
 function loadLayout(mode: LayoutMode): LayoutItem[] {
   clearOldLayoutKeys()
-  const { storageKey, defaultLayout } = layoutConfig(mode)
-  try {
-    const raw = localStorage.getItem(storageKey)
-    if (raw) {
-      return compactLayoutVertical(sanitizeLayout(JSON.parse(raw) as LayoutItem[], mode))
-    }
-  } catch { /* defaults */ }
+  const { defaultLayout } = layoutConfig(mode)
   return compactLayoutVertical(cloneLayout(defaultLayout))
 }
 
@@ -290,9 +284,8 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
     const packed = compactLayoutVertical(cloneLayout([...next]))
     const copy = clampLayout(packed, layoutMode)
     setLayout(copy)
-    localStorage.setItem(storageKey, JSON.stringify(copy))
     window.dispatchEvent(new Event('panel-resize'))
-  }, [layoutMode, storageKey])
+  }, [layoutMode])
 
   const handleDragStart = useCallback(
     (_next: Layout, oldItem: LayoutItem | null) => {

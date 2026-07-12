@@ -45,7 +45,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showTradeBook, setShowTradeBook] = useState(false)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
-  const [deskMode, setDeskMode] = useState<DataMode>('replay')
+  const [deskMode, setDeskMode] = useState<DataMode>('paper')
   const [showHelp, setShowHelp] = useState(false)
   const layoutResetRef = useRef<(() => void) | null>(null)
   const replayBootRef = useRef(false)
@@ -293,8 +293,8 @@ export default function App() {
               frame.live_mode
                 ? 'border-desk-loss/40 bg-desk-loss/10 text-desk-loss'
                 : frame.feed_type === 'paper_trading'
-                  ? 'border-desk-warn/40 bg-desk-warn/10 text-desk-warn'
-                  : 'border-desk-profit/30 bg-desk-profit/10 text-desk-profit'
+                  ? 'border-desk-profit/40 bg-desk-profit/10 text-desk-profit'
+                  : 'border-desk-warn/30 bg-desk-warn/10 text-desk-warn'
             }`}
           >
             {modeLabel} · {frame.regime.replace('_', ' ')}
