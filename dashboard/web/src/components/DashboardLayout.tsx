@@ -181,6 +181,13 @@ function clampLayout(raw: LayoutItem[], mode: LayoutMode): LayoutItem[] {
   return raw.map((item) => clampItem(item, defaults))
 }
 
+/** Compute overlap area (in grid cells²) between two layout items. */
+function rectOverlapArea(a: LayoutItem, b: LayoutItem): number {
+  const overlapX = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+  const overlapY = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
+  return overlapX * overlapY
+}
+
 let clearedLegacyLayoutKeys = false
 
 function clearOldLayoutKeys() {
@@ -237,6 +244,8 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
   }, [layoutMode])
   const [fullscreen, setFullscreen] = useState<PanelId | null>(null)
   const savedHeights = useRef<Partial<Record<PanelId, number>>>({})
+  const preDragLayout = useRef<LayoutItem[] | null>(null)
+  const draggedItemId = useRef<string | null>(null)
 
   const contentRows = useMemo(() => layoutExtent(layout), [layout])
 
@@ -284,14 +293,79 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
     window.dispatchEvent(new Event('panel-resize'))
   }, [layoutMode, storageKey])
 
-  const handleDrag = useCallback((next: Layout) => {
-    applyLayout(next)
-  }, [applyLayout])
+  const handleDragStart = useCallback(
+    (_next: Layout, oldItem: LayoutItem | null) => {
+      preDragLayout.current = cloneLayout(layout)
+      draggedItemId.current = oldItem?.i ?? null
+      if (DEBUG_GRID && oldItem) console.log('[grid-drag] start', oldItem.i)
+    },
+    [layout],
+  )
 
-  const handleDragStop = useCallback((next: Layout) => {
-    if (DEBUG_GRID) console.log('[grid-drag] stop', next.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })))
-    persistLayout(next)
-  }, [persistLayout])
+  const handleDrag = useCallback((_next: Layout) => {
+    // No-op: don't rearrange other panels during drag.
+    // react-draggable still moves the dragged item visually via direct DOM transforms.
+  }, [])
+
+  const handleDragStop = useCallback(
+    (next: Layout, _oldItem: LayoutItem | null, newItem: LayoutItem | null) => {
+      const original = preDragLayout.current
+      const draggedId = draggedItemId.current
+      preDragLayout.current = null
+      draggedItemId.current = null
+
+      if (!original || !draggedId || !newItem) {
+        persistLayout(next)
+        return
+      }
+
+      const draggedOriginal = original.find((it) => it.i === draggedId)
+      if (!draggedOriginal) {
+        persistLayout(next)
+        return
+      }
+
+      // Dropped back on its own slot — no change needed
+      if (newItem.x === draggedOriginal.x && newItem.y === draggedOriginal.y) {
+        setLayout(cloneLayout(original))
+        return
+      }
+
+      // Find which original panel the dragged item now overlaps with most
+      let bestOverlap = 0
+      let swapTargetId: string | null = null
+
+      for (const item of original) {
+        if (item.i === draggedId) continue
+        const overlap = rectOverlapArea(newItem, item)
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap
+          swapTargetId = item.i
+        }
+      }
+
+      if (swapTargetId) {
+        const target = original.find((it) => it.i === swapTargetId)!
+        if (DEBUG_GRID) console.log('[grid-drag] swap', draggedId, '↔', swapTargetId)
+        // Swap full slot (x, y, w, h) between the two panels — everything else stays put
+        const swapped = original.map((item) => {
+          if (item.i === draggedId) {
+            return { ...item, x: target.x, y: target.y, w: target.w, h: target.h }
+          }
+          if (item.i === swapTargetId) {
+            return { ...item, x: draggedOriginal.x, y: draggedOriginal.y, w: draggedOriginal.w, h: draggedOriginal.h }
+          }
+          return { ...item }
+        })
+        persistLayout(swapped)
+      } else {
+        // No overlap target — restore original layout unchanged
+        if (DEBUG_GRID) console.log('[grid-drag] no swap target, restoring')
+        setLayout(cloneLayout(original))
+      }
+    },
+    [persistLayout],
+  )
 
   const handleResize = useCallback(
     (next: Layout, _old: LayoutItem | null, item: LayoutItem | null, _placeholder: LayoutItem | null, event: Event) => {
@@ -406,6 +480,7 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
         rowHeight={rowHeight}
         margin={[MARGIN, MARGIN]}
         containerPadding={[CONTAINER_PADDING, CONTAINER_PADDING]}
+        onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragStop={handleDragStop}
         onResizeStart={handleResizeStart}
