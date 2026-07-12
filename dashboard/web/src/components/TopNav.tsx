@@ -25,9 +25,9 @@ export function TopNav({ frame, connected, onSettings, onResetLayout, showResetL
   const mode = isLive ? 'LIVE' : isPaper ? 'PAPER' : (frame?.mode ?? 'REPLAY')
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-desk-border bg-desk-panel px-4">
-      <div className="flex items-center gap-4">
-        <Logo size={28} showText />
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-desk-border bg-desk-panel px-2 py-1.5 sm:h-12 sm:flex-nowrap sm:gap-y-0 sm:px-4 sm:py-0">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+        <Logo size={24} showText className="[&_span:last-child]:hidden sm:[&_span:last-child]:inline" />
 
         <motion.div
           animate={{ opacity: [1, 0.6, 1] }}
@@ -48,11 +48,15 @@ export function TopNav({ frame, connected, onSettings, onResetLayout, showResetL
         />
       </div>
 
-      <div className="flex items-center gap-4 text-[11px] font-mono text-desk-muted">
-        <Stat icon={<Activity size={12} />} label="evt/s" value={frame?.events_per_sec != null ? frame.events_per_sec.toFixed(0) : '—'} />
-        <Stat icon={<Timer size={12} />} label="latency" value={frame?.end_to_end_latency_ms != null ? formatLatencyMs(frame.end_to_end_latency_ms) : '—'} />
-        <Stat icon={<Cpu size={12} />} label="cpu" value={frame?.cpu_percent != null ? `${frame.cpu_percent.toFixed(0)}%` : '—'} />
-        <Stat icon={<HardDrive size={12} />} label="mem" value={frame?.memory_mb != null ? `${frame.memory_mb.toFixed(0)}MB` : '—'} />
+      <div className="flex shrink-0 items-center gap-2 text-[10px] font-mono text-desk-muted sm:gap-4 sm:text-[11px]">
+        <div className="hidden md:flex items-center gap-4">
+          <Stat icon={<Activity size={12} />} label="evt/s" value={frame?.events_per_sec != null ? frame.events_per_sec.toFixed(0) : '—'} />
+          <Stat icon={<Timer size={12} />} label="latency" value={frame?.end_to_end_latency_ms != null ? formatLatencyMs(frame.end_to_end_latency_ms) : '—'} />
+        </div>
+        <div className="hidden lg:flex items-center gap-4">
+          <Stat icon={<Cpu size={12} />} label="cpu" value={frame?.cpu_percent != null ? `${frame.cpu_percent.toFixed(0)}%` : '—'} />
+          <Stat icon={<HardDrive size={12} />} label="mem" value={frame?.memory_mb != null ? `${frame.memory_mb.toFixed(0)}MB` : '—'} />
+        </div>
         {showResetLayout && onHelp && (
           <button
             type="button"
@@ -88,7 +92,7 @@ export function TopNav({ frame, connected, onSettings, onResetLayout, showResetL
 
 function NavChip({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <div className="hidden lg:flex flex-col">
+    <div className="hidden xl:flex flex-col">
       <span className="text-[9px] uppercase tracking-wider text-desk-muted">{label}</span>
       <span className={`text-xs font-medium ${className ?? 'text-desk-text'}`}>{value}</span>
     </div>

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
@@ -14,6 +15,9 @@ interface SideDrawerProps {
 }
 
 export function SideDrawer({ open, onClose, title, children, width = 'min(420px, 38vw)' }: SideDrawerProps) {
+  const isMobile = useIsMobile()
+  const drawerWidth = isMobile ? '100%' : width
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -42,8 +46,8 @@ export function SideDrawer({ open, onClose, title, children, width = 'min(420px,
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0.6 }}
             transition={{ duration: 0.42, ease: EASE }}
-            className="absolute inset-y-0 right-0 z-[60] flex h-full flex-col overflow-hidden rounded-l-2xl border border-l border-desk-border bg-desk-bg shadow-[-8px_0_32px_rgba(0,0,0,0.45)]"
-            style={{ width, height: '100%' }}
+            className={`absolute inset-y-0 right-0 z-[60] flex h-full flex-col overflow-hidden border border-l border-desk-border bg-desk-bg shadow-[-8px_0_32px_rgba(0,0,0,0.45)]${isMobile ? '' : ' rounded-l-2xl'}`}
+            style={{ width: drawerWidth, height: '100%' }}
           >
             <header className="flex shrink-0 items-center justify-between border-b border-desk-border px-4 py-2.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-desk-text">{title}</span>

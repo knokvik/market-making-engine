@@ -14,13 +14,13 @@ interface DeskModeSwitcherProps {
 
 export function DeskModeSwitcher({ mode, onChange }: DeskModeSwitcherProps) {
   return (
-    <div className="flex items-center gap-1 rounded border border-desk-border bg-desk-panel/60 p-0.5 font-mono">
+    <div className="flex items-center gap-0.5 rounded border border-desk-border bg-desk-panel/60 p-0.5 font-mono sm:gap-1">
       {MODES.map((m) => (
         <button
           key={m.id}
           type="button"
           onClick={() => onChange(m.id)}
-          className={`flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+          className={`flex items-center gap-0.5 rounded px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition sm:gap-1 sm:px-2 sm:text-[10px] ${
             mode === m.id
               ? m.id === 'live'
                 ? 'bg-desk-loss/15 text-desk-loss'
@@ -31,7 +31,7 @@ export function DeskModeSwitcher({ mode, onChange }: DeskModeSwitcherProps) {
           }`}
         >
           {m.icon(mode === m.id)}
-          {m.label}
+          <span className="hidden min-[400px]:inline">{m.label}</span>
         </button>
       ))}
     </div>

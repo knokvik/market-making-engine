@@ -272,8 +272,8 @@ export default function App() {
 
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} deskMode={deskMode} />
 
-      <div className="flex items-center gap-2 border-b border-desk-border bg-desk-bg px-4 py-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-desk-text">Trading Desk</span>
+      <div className="flex flex-wrap items-center gap-2 border-b border-desk-border bg-desk-bg px-2 py-1.5 sm:px-4 sm:py-1">
+        <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-desk-text sm:inline">Trading Desk</span>
 
         <DeskModeSwitcher mode={deskMode} onChange={handleDeskModeChange} />
 
@@ -283,13 +283,15 @@ export default function App() {
             onClick={openTradeBook}
             className="toolbar-btn border-desk-warn/30 text-desk-warn"
           >
-            <BookOpen size={11} /> Trade Book →
+            <BookOpen size={11} />
+            <span className="hidden min-[400px]:inline">Trade Book</span>
+            <span className="hidden sm:inline"> →</span>
           </button>
         )}
 
         {frame && (
           <span
-            className={`ml-auto rounded-full border px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+            className={`w-full rounded-full border px-2 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wider sm:ml-auto sm:w-auto sm:px-3 sm:text-[10px] ${
               frame.live_mode
                 ? 'border-desk-loss/40 bg-desk-loss/10 text-desk-loss'
                 : frame.feed_type === 'paper_trading'
@@ -301,7 +303,7 @@ export default function App() {
             {deskMode === 'paper' && frame.algo_state?.active && ` · ALGO ${frame.symbol}`}
           </span>
         )}
-        <span className="text-[10px] text-desk-muted">
+        <span className="hidden w-full text-[10px] text-desk-muted lg:inline lg:w-auto">
           {layoutMode === 'replay'
             ? 'Space play/pause · ←/→ step · R reset'
             : layoutMode === 'paper'
@@ -364,7 +366,7 @@ export default function App() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass-panel w-96 p-4"
+              className="glass-panel mx-4 w-full max-w-sm p-4 sm:mx-0"
             >
               <h2 className="mb-3 text-sm font-semibold">Session Settings</h2>
               <div className="space-y-3 text-xs text-desk-muted">

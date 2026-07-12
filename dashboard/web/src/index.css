@@ -303,3 +303,39 @@ body {
     transform: scaleX(1);
   }
 }
+
+/* ═══ Mobile responsive layout ═══ */
+@media (max-width: 767px) {
+  .dashboard-grid-mobile .react-grid-item {
+    touch-action: pan-y;
+  }
+
+  .dashboard-grid-mobile .react-grid-item > .react-resizable-handle {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  .dashboard-grid-mobile .panel-drag-handle {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .dashboard-grid-mobile .panel-controls {
+    opacity: 1;
+  }
+
+  .dashboard-grid-mobile .panel-ctrl-btn {
+    width: 20px;
+    height: 20px;
+  }
+
+  header,
+  footer {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+
+  footer {
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  }
+}

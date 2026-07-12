@@ -3,8 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import ReactGridLayout, { WidthProvider } from 'react-grid-layout/legacy'
 import type { Layout, LayoutItem } from 'react-grid-layout/legacy'
 import { ChevronDown, ChevronUp, Maximize2 } from 'lucide-react'
+import { useIsMobile } from '../hooks/useIsMobile'
 import type { PanelId } from '../types'
 import { compactLayoutVertical, computeAdaptiveRowHeight, layoutExtent } from '../utils/gridLayout'
+import { buildMobileLayout } from '../utils/mobileLayout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
@@ -18,6 +20,7 @@ const COLLAPSED_KEY_LIVE = 'mm-engine-dashboard-collapsed-v20-live'
 
 export type LayoutMode = 'replay' | 'paper' | 'live'
 const ROW_HEIGHT_BASE = 32
+const MOBILE_ROW_HEIGHT = 36
 const GRID_COLS = 12
 const MARGIN = 8
 const CONTAINER_PADDING = 8
@@ -191,11 +194,22 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset }: DashboardLayoutProps) {
+  const isMobile = useIsMobile()
   const { panelOrder, storageKey, collapsedKey } = layoutConfig(layoutMode)
   const [layout, setLayout] = useState<LayoutItem[]>(() => loadLayout(layoutMode))
   const [collapsed, setCollapsed] = useState<Set<PanelId>>(() => loadCollapsed(layoutMode))
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerHeight, setContainerHeight] = useState(0)
+
+  const activePanelIds = useMemo(
+    () => panelOrder.filter((id) => panels[id]),
+    [panelOrder, panels],
+  )
+
+  const mobileLayout = useMemo(
+    () => buildMobileLayout(layoutMode, activePanelIds),
+    [layoutMode, activePanelIds],
+  )
 
   useEffect(() => {
     setLayout(loadLayout(layoutMode))
@@ -208,19 +222,22 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
   const draggedItemId = useRef<string | null>(null)
   const currentSwapTarget = useRef<string | null>(null)
 
-  const contentRows = useMemo(() => layoutExtent(layout), [layout])
+  const effectiveLayout = isMobile ? mobileLayout : layout
 
-  const { rowHeight, fillsViewport } = useMemo(
-    () =>
-      computeAdaptiveRowHeight(
-        containerHeight,
-        contentRows,
-        ROW_HEIGHT_BASE,
-        MARGIN,
-        CONTAINER_PADDING * 2,
-      ),
-    [containerHeight, contentRows],
-  )
+  const contentRows = useMemo(() => layoutExtent(effectiveLayout), [effectiveLayout])
+
+  const { rowHeight, fillsViewport } = useMemo(() => {
+    if (isMobile) {
+      return { rowHeight: MOBILE_ROW_HEIGHT, fillsViewport: false }
+    }
+    return computeAdaptiveRowHeight(
+      containerHeight,
+      contentRows,
+      ROW_HEIGHT_BASE,
+      MARGIN,
+      CONTAINER_PADDING * 2,
+    )
+  }, [isMobile, containerHeight, contentRows])
 
   useEffect(() => {
     const el = containerRef.current
@@ -479,32 +496,32 @@ export function DashboardLayout({ panels, layoutMode = 'replay', onRegisterReset
   return (
     <div
       ref={containerRef}
-      className="dashboard-grid-container relative min-h-0 flex-1 basis-0"
+      className={`dashboard-grid-container relative min-h-0 flex-1 basis-0${isMobile ? ' dashboard-grid-mobile' : ''}`}
     >
       <GridLayout
         className="layout"
-        layout={layout}
+        layout={effectiveLayout}
         cols={GRID_COLS}
         rowHeight={rowHeight}
         margin={[MARGIN, MARGIN]}
         containerPadding={[CONTAINER_PADDING, CONTAINER_PADDING]}
-        onDragStart={handleDragStart}
-        onDrag={handleDrag}
-        onDragStop={handleDragStop}
-        onResizeStart={handleResizeStart}
-        onResize={handleResize}
-        onResizeStop={handleResizeStop}
+        onDragStart={isMobile ? undefined : handleDragStart}
+        onDrag={isMobile ? undefined : handleDrag}
+        onDragStop={isMobile ? undefined : handleDragStop}
+        onResizeStart={isMobile ? undefined : handleResizeStart}
+        onResize={isMobile ? undefined : handleResize}
+        onResizeStop={isMobile ? undefined : handleResizeStop}
         draggableHandle=".panel-drag-handle"
         draggableCancel={DRAG_CANCEL}
         compactType="vertical"
         preventCollision={false}
-        isDraggable
-        isResizable
-        resizeHandles={RESIZE_HANDLES}
+        isDraggable={!isMobile}
+        isResizable={!isMobile}
+        resizeHandles={isMobile ? [] : RESIZE_HANDLES}
         useCSSTransforms
         style={{ minHeight: fillsViewport ? '100%' : gridHeight, height: fillsViewport ? '100%' : undefined }}
       >
-        {panelOrder.filter((id) => panels[id]).map((id) => (
+        {activePanelIds.map((id) => (
           <div key={id} className="grid-panel-wrapper">
             <div className="panel-chrome">
               <div className="panel-controls panel-no-drag">
